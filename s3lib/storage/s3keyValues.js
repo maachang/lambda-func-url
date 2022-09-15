@@ -25,16 +25,27 @@ const AWS = require('aws-sdk');
 
 // インデックスであるKey=base64(value)の条件を取得.
 const getIndexKeyValueName = function(key, value) {
-    // base64の最後の`=`を除外.
-    value = Buffer.from(value).toString('base64');
-    let n = "";
-    const len = value.length;
-    for(var i = 0; i < len; i ++) {
-        if(value[i] != "=") {
-            n += value[i];
+    // valueが空でない場合.
+    if(value != null && value != undefined) {
+        // valueを文字列変換.
+        value = "" + value;
+        // 文字列が存在する場合.
+        if(value.length > 0) {
+            // base64変換.
+            value = Buffer.from("" + value).toString('base64');
+            const len = value.length;
+            // base64の最後の`=`を除外.
+            for(var i = len - 1; i >= 0; i --) {
+                if(value[i] != "=") {
+                    value = value.substring(0, i + 1);
+                    break;
+                }
+            }
         }
+    // valueが存在しない場合.
+    } else {
+        value = "";
     }
-    value = n;
     // ={key}={base64(value)}
     return "=" +
         key +
@@ -50,14 +61,15 @@ const getIndexKeyValueName = function(key, value) {
 // 戻り値: S3パラメータが返却されます.
 const getS3Params = function(
     bucketName, prefixName, tableName, keys) {
+    let count = 0;
     const list = [];
-    // keysを["={key}=base64{keys[key]}=", ...] に生成.
-    for(let k in keys) {
-        list[list.length] = getIndexKeyValueName(
-            k, keys[k]);
+    // keysを["={key}=base64{keys[key]}", ...] に生成.
+    for(let key in keys) {
+        list[count ++] = getIndexKeyValueName(
+            key, keys[key]);
     }
     // keys = zeroの場合はエラー.
-    if(list.length == 0) {
+    if(count == 0) {
         throw new Error("No index key is set");
     }
     // keysをソート.
