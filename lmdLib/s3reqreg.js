@@ -191,23 +191,32 @@ const getS3Path = function(path, currentPath) {
     };
 }
 
-// 指定S3からJavascriptをロード.
+// 指定S3からオブジェクトを取得.
 // params pathをgetS3Path()で処理した内容を設定します.
 // 戻り値: promiseが返却されます.
-const loadS3ByJs = function(params) {
+const loadS3 = function(params) {
     const s3 = new AWS.S3({
         region: getRegion()
     });
     // S3オブジェクトを取得.
     return s3.getObject(params).promise()
     .then((data) => {
-        //return (new TextDecoder).decode(data.Body);
-        return data.Body.toString('utf-8');
+        return data.Body;
     })
     .catch((e) => {
-        console.error("## [ERROR] loadS3ByJs params: " +
+        console.error("## [ERROR] loadS3 params: " +
             JSON.stringify(params));
         throw e;
+    });
+}
+
+// 指定S3からJavascriptをロード.
+// params pathをgetS3Path()で処理した内容を設定します.
+// 戻り値: promiseが返却されます.
+const loadS3ByJs = function(params) {
+    return loadS3(params)
+    .then((body) => {
+        return body.toString('utf-8');
     });
 }
 
@@ -313,11 +322,24 @@ const s3require = async function(path, curerntPath, noneCache) {
     return result;
 }
 
+// s3情報を設定してコンテンツ(binary)を取得.
+// path requireするs3pathを設定します.
+// curerntPath 今回有効にしたいcurrentPathを設定する場合、設定します.
+// 戻り値: promiseが返却されます.
+const s3contents = function(path, curerntPath) {
+    // s3pathをBucket, Keyに分解.
+    // S3からコンテンツ(binary)を返却.
+    return loadS3(getS3Path(path, curerntPath));
+}
+
 // 初期設定.
 const init = function() {
     // s3requireをglobalに登録、global設定に対して書き込み不可設定を行う.
     Object.defineProperty(_g, "s3require",
         {writable: false, value: s3require});
+    // s3contentsをglobalに登録、global設定に対して書き込み不可設定を行う.
+    Object.defineProperty(_g, "s3contents",
+        {writable: false, value: s3contents});
 }
 
 /////////////////////////////////////////////////////

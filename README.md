@@ -10,11 +10,11 @@ AWSのLambdaにおいて昨今(2022年ちょっと)から `関数URL` と言う�
 
  https://docs.aws.amazon.com/ja_jp/lambda/latest/dg/lambda-urls.html
 
->URL　https：//{url-id}.lambda-url.{region}.on.aws
+>URL　https：//{関数URLのID}.lambda-url.{region}.on.aws
 
-のような形のEND-POINTが設定できて、ブラウザ等から「パブリック」なアクセスが実現できるものである。
+のような形のEND-POINTが設定できて、ブラウザ等から「パブリック」アクセスが実現できるものである。
 
-これに伴い、以下のように `関数URL` を定義すると対象EndPointのURLが定義されるので以下のように
+これに伴い、以下のように対象のLambdaに `関数URL` を定義すると対象EndPointのURLが定義されるので以下のように
 
 ~~~js
 exports.handler = function(event, context) {
@@ -25,7 +25,7 @@ exports.handler = function(event, context) {
 }
 ~~~
 
-とすると以下内容が返却される
+実装すると、アクセスしたブラウザ側に対して以下の内容が返却される。
 
 ~~~json
 {
@@ -67,9 +67,11 @@ exports.handler = function(event, context) {
 } 
 ~~~
 
-こんな風に event から `"rawPath": "/"` が取れるので、たとえば定義された関数URLのURLに対して、当該設定されたLambdaの `関数URL` の後に指定されたURLが、ここから取得できるわけで、なので１つの `関数URL` を割り当てたLambdaに対して、この `event.rawPath` の挙動を１つのLambdaで差配できるわけで、これを「S3バケット+プレフィックスにあるコンテンツ」に直接アクセスできるようにすれば `serverless` なWeb開発が簡単にできるか可能性がある.
+こんな風に event から `"rawPath": "/"` が取れるので、たとえば定義された関数URLのURLに対して、当該設定されたLambdaの `関数URL` の後に指定されたURLが、ここから取得できるわけで、なので１つの `関数URL` を割り当てたLambdaに対して、この `event.rawPath` の挙動を１つのLambdaで差配できるわけで、これを「S3バケット+プレフィックスにあるコンテンツ」や、対象Githubリポジトリに直接アクセスできるようにすれば `serverless` なWeb開発が簡単にできるか可能性がある.
 
-新しく `楽な形` で `serverless なframework`  `最小限の環境` でLambdaの `serverless` 環境構築が実行できる形を作りたいと思う.
+なるべく `楽な形` で `serverless なframework`  `最小限の環境` でLambdaの `serverless` 環境構築が実行できる形を作りたいと思う.
 
 ## lambda-func-urlの実装について
+
+
 
