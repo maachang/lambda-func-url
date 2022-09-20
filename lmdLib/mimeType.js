@@ -107,7 +107,7 @@ const compressToContents = function(reqHeader, resHeader, body) {
         }
     }
     // 未圧縮.
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         resolve(body);
     });
 }

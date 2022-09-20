@@ -53,7 +53,7 @@ const HTTP_STATUS_TO_MESSAGE = {
 // HTTPステータスのメッセージを取得.
 // status 対象のHTTPステータスを設定します.
 // 戻り値: HTTPステータスメッセージが返却されます.
-const statusToMessage = function(status) {
+const toMessage = function(status) {
     const ret = HTTP_STATUS_TO_MESSAGE["" + status];
     if(ret == undefined) {
         return "unknown http status message: " + status;
@@ -136,6 +136,6 @@ const create = function(status) {
 // 外部定義.
 /////////////////////////////////////////////////////
 exports.create = create;
-exports.statusToMessage = statusToMessage;
+exports.toMessage = toMessage;
 
 })();

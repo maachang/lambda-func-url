@@ -5,7 +5,7 @@
 'use strict'
 
 // HTTPヘッダを生成.
-// headers 元のHTTOヘッダを設定します.
+// headers 元のHTTPヘッダを設定します.
 // 戻り値: HttpHeaderオブジェクトが返却されます.
 const create = function(headers) {
     const head = {};
@@ -44,9 +44,9 @@ const create = function(headers) {
         return ret;
     }
 
-    // Map情報(Object)を取得.
-    // 戻り値: Map情報(Object)が返却されます.
-    ret.toMap = function() {
+    // Header群情報(Object)を取得.
+    // 戻り値: Header群情報(Object)が返却されます.
+    ret.toHeaders = function() {
         return head;
     }
     

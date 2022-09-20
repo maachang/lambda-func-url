@@ -13,6 +13,12 @@
 // 
 // また `require("./LFUSetup.js").start();` では以下の引数を
 // 設定する事が可能です.
+//
+// filterFunc コンテンツ実行の前処理を行う場合は設定します.
+// originMime 拡張MimeTypeを設定します.
+//            function(extends)が必要で、拡張子の結果に対して
+//            戻り値が {type: mimeType, gz: boolean}を返却する
+//            必要があります(非対応の場合は undefined).
 // 
 // 
 //
@@ -220,6 +226,10 @@ const start = function(filterFunc, originMime) {
     // 環境変数を取得.
     const env = analysisEnv();
 
+    ////////////////////////////////////////
+    // 環境変数を取得して、それぞれを初期化する.
+    ////////////////////////////////////////
+
     // s3reqreg.
     const s3reqreg = require("./s3reqreg");
     // s3接続定義が存在する場合.
@@ -262,11 +272,11 @@ const start = function(filterFunc, originMime) {
     createRequestFunc(env);
 
     // filterFuncをセット.
-    _filterFunction = (filterFunc == null || filterFunc == undefined) ?
+    _filterFunction = (typeof(filterFunc) != "function") ?
         undefined : filterFunc;
 
     // 拡張mimeFuncをセット.
-    _originMimeFunc = (originMime == null || originMime == undefined) ?
+    _originMimeFunc = (typeof(originMime) != "function") ?
         undefined : originMime;
     
     // main_handlerを返却.
@@ -359,14 +369,14 @@ const getMimeType = function(extention) {
     }
     // 最終的にundefinedの場合は、octet_streamをセット.
     return ret == undefined ?
-        mime.OCTET_STREAM: ret;
+        {type: mime.OCTET_STREAM, gz: false} : ret;
 }
 
 // requestQuery(URL: xxx?a=1&b=2...).
 // event aws Lambda[index.js]exports.handler(event)条件が設定されます.
 // 戻り値: {key: value .... } のパラメータ条件が返却されます.
 //        存在しない場合は {}が返却されます.
-const getRequestQueryString = function(event) {
+const getQueryParams = function(event) {
     const ret = event.queryStringParameters;
     if(ret == undefined || ret == null) {
         return {};
@@ -403,10 +413,17 @@ const stringToBinary = function(s) {
 
 // HTTPヘッダに対してBody条件を設定します.
 // header 対象のHTTPヘッダを設定します.
+//        bodyの型に対してcontent-typeを以下のようにセット.
+//         string: HTML形式で返却.
+//         object: json形式で返却.
+//        これ以外は 強制的に文字列変換して text形式で返却.
+//        ただし、content-typeとcontent-lengthが既に設定済みの
+//        場合はセットしない.
 // body 対象のBodyを設定します.
 // 戻り値: 変換されたBody情報が返却されます.
 const setHeaderToBody = function(header, body) {
-    // コンテンツタイプやコンテンツ長が設定されていない場合.
+    // 既にコンテンツタイプとコンテンツ長が設定いる場合は
+    // 設定しないようにする.
     if(header.get("content-type") == undefined ||
         header.get("content-length") == undefined) {
         const t = typeof(body);
@@ -414,7 +431,7 @@ const setHeaderToBody = function(header, body) {
         if(t == "string") {
             body = stringToBinary(body);
             // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-            header.put("content-type", getMimeType("html"));
+            header.put("content-type", getMimeType("html").type);
             // レスポンス返却のBody長をセット.
             header.put("content-length", body.length);
         // 返却結果がobject型の場合.
@@ -428,7 +445,7 @@ const setHeaderToBody = function(header, body) {
         } else {
             body = stringToBinary("" + body);
             // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-            header.put("content-type", getMimeType("text"));
+            header.put("content-type", getMimeType("text").type);
             // レスポンス返却のBody長をセット.
             header.put("content-length", body.length);
         }
@@ -446,19 +463,20 @@ const _main_handler = async function(event) {
     // レスポンスステータス.
     const resState = httpStatus.create();
     // レスポンスヘッダ.
-    let resHeaders = httpHeader.create();
+    let resHeader = httpHeader.create();
+
     try {
 
-        // AWSLambdaの関数URLパラメータから必要な内容を取得して設定.
+        // AWSLambdaの関数URLパラメータから必要な内容を取得.
         const params = {
             // httpメソッド.
             method: event.requestContext.http.method,
             // EndPoint(string)パス.
             path: event.rawPath,
-            // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toMap)).
-            reqHeader: httpHeader.create(event.headers),
-            // リクエストパラメータ(map).
-            requestParams: getRequestQueryString(event),
+            // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
+            requestHeader: httpHeader.create(event.headers),
+            // リクエストパラメータ(Object).
+            requestParams: getQueryParams(event),
             // リクエストBody.
             requestBody: event.body == undefined || event.body == null ?
                 undefined : event.body,
@@ -466,7 +484,11 @@ const _main_handler = async function(event) {
             isBase64Encoded: body.isBase64Encoded,
             // EndPoint(string)パスに対するファイルの拡張子.
             // undefinedの場合、js実行結果を返却させる.
-            extension: getPathToExtends(event.rawPath)
+            extension: getPathToExtends(event.rawPath),
+            // 拡張子mimeType変換用.
+            mimeType: getMimeType,
+            // 元のeventをセット.
+            srcEvent: event
         };
 
         // filterFunctionが設定されてる場合呼び出す.
@@ -476,16 +498,16 @@ const _main_handler = async function(event) {
             //  string: HTML形式で返却.
             //  object: json形式で返却.
             // これ以外は 強制的に文字列変換して text形式で返却.
-            let resBody = _filterFunction(resState, resHeaders, params);
+            let resBody = _filterFunction(resState, resHeader, params);
             // 実行に対する戻り値が存在する場合は、コンテンツ実行は行わない.
             if(resBody != undefined && resBody != null) {
                 // ヘッダに対してBody条件をセット.
-                resBody = setHeaderToBody(resHeaders, resBody);
+                resBody = setHeaderToBody(resHeader, resBody);
                 // レスポンス返却.
                 return {
                     statusCode: resState.getStatus(),
-                    headers: resHeaders.toMap(),
-                    body: resBody == undefined || resBody == null ? "" : resBody
+                    headers: resHeader.toHeaders(),
+                    body: resBody
                 };
             }
         }
@@ -496,109 +518,131 @@ const _main_handler = async function(event) {
             // 配置されているコンテンツのバイナリを返却する.
             try {
                 // 対象パスのコンテンツ情報を取得.
-                const resBody = await _requestFunction(false, params.path);
+                let resBody = await _requestFunction(false, params.path);
+
+                // mimeTypeを取得.
+                const resMimeType = getMimeType(params.extension);
+
+                // 圧縮対象の場合.
+                if(resMimeType.gz == true) {
+                    // 圧縮処理.
+                    resBody = await mime.compressToContents(
+                        params.requestHeader, resHeader, resBody);
+                }
+
                 // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-                resHeaders.put("content-type", getMimeType(params.extension));
+                resHeader.put("content-type", resMimeType.type);
                 // レスポンス返却のBody長をセット.
-                resHeaders.put("content-length", resBody.length);
+                resHeader.put("content-length", resBody.length);
                 return {
                     statusCode: 200,
-                    headers: resHeaders.toMap(),
+                    headers: resHeader.toHeaders(),
                     body: resBody
                 };
             // エラーが発生した場合.
             } catch(e) {
                 // 404エラー返却.
                 const resBody = stringToBinary(
-                    "[error]404 " + httpStatus.statusToMessage(404));
+                    "[error]404 " + httpStatus.toMessage(404));
                 // 新しいレスポンスヘッダを作成.
-                resHeaders = httpHeader.create();
+                resHeader = httpHeader.create();
                 // テキストのレスポンスMimeTypeをセット.
-                resHeaders.put("content-type", getMimeType("text"));
+                resHeader.put("content-type", getMimeType("text").type);
                 // レスポンス返却のBody長をセット.
-                resHeaders.put("content-length", resBody.length);
+                resHeader.put("content-length", resBody.length);
                 // ファイルが存在しない(404).
                 return {
                     statusCode: 404,
-                    headers: resHeaders.toMap(),
+                    headers: resHeader.toHeaders(),
                     body: resBody
                 };
             }
         }
 
+        ////////////////////////////
         // externalなfunctionを実行.
-        const func = await _requestFunction(true, params.path + ".js");
-        // 実行メソッド(handler)を取得.
-        if(typeof(func["handler"]) == "function") {
-            func = func["handler"];
-        // handler実行メソッドが存在しない場合別の実行メソッド名(execute)で取得.
-        } else if(typeof(func["execute"]) == "function") {
-            func = func["execute"];
-        // それ以外の場合エラー.
-        } else {
-            throw new Error(
-                "The execution method does not exist in the specified path: \"" +
-                params.path + ".js\" condition.")
-        }
+        ////////////////////////////
+        {
+            // 対象Javascriptを取得.
+            const func = await _requestFunction(true, params.path + ".js");
+            // 実行メソッド(handler)を取得.
+            if(typeof(func["handler"]) == "function") {
+                func = func["handler"];
+            // handler実行メソッドが存在しない場合別の実行メソッド名(execute)で取得.
+            } else if(typeof(func["execute"]) == "function") {
+                func = func["execute"];
+            // それ以外の場合エラー.
+            } else {
+                throw new Error(
+                    "The execution method does not exist in the specified path: \"" +
+                    params.path + ".js\" condition.")
+            }
 
-        // js実行.
-        let resBody = await func(resState, resHeaders, params);
+            // js実行.
+            let resBody = await func(resState, resHeader, params);
 
-        // 実行結果リダイレクト条件が設定されている場合.
-        if(resState.isRedirect()) {
-            // 新しいレスポンスヘッダを作成.
-            resHeaders = httpHeader.create();
-            // リダイレクト条件をヘッダにセットしてリダイレクト.
-            resHeaders.put("location", resState.getRedirectURL());
-            resHeaders.put("content-length", 0);
+            // 実行結果リダイレクト条件が設定されている場合.
+            if(resState.isRedirect()) {
+                // 新しいレスポンスヘッダを作成.
+                resHeader = httpHeader.create();
+                // リダイレクト条件をヘッダにセットしてリダイレクト.
+                resHeader.put("location", resState.getRedirectURL());
+                resHeader.put("content-length", 0);
+                // 処理返却.
+                return {
+                    statusCode: resState.getStatus(),
+                    headers: resHeader.toHeaders()
+                };
+            // レスポンスBodyが存在しない場合.
+            } else if(resBody == undefined || resBody == null) {
+                // mimeType=textでレスポンス0で返却.
+                resHeader.put("content-type", getMimeType("text").type);
+                resHeader.put("content-length", 0);
+                // 処理返却.
+                return {
+                    statusCode: resState.getStatus(),
+                    headers: resHeader.toHeaders()
+                };
+            }
+            // 処理結果が存在する場合.
+            // ヘッダに対してBody条件をセット.
+            // 戻り値に対して、以下のcontent-typeをセット.
+            //  string: HTML形式で返却.
+            //  object: json形式で返却.
+            // これ以外は 強制的に文字列変換して text形式で返却.
+            resBody = setHeaderToBody(resHeader, resBody);
             // 処理返却.
             return {
                 statusCode: resState.getStatus(),
-                headers: resHeaders.toMap()
-            };
-        // レスポンスBodyが存在しない場合.
-        } else if(resBody == undefined || resBody == null) {
-            // mimeType=textでレスポンス0で返却.
-            resHeaders.put("content-type", getMimeType("text"));
-            resHeaders.put("content-length", 0);
-            // 処理返却.
-            return {
-                statusCode: resState.getStatus(),
-                headers: resHeaders.toMap()
+                headers: resHeader.toHeaders(),
+                body: resBody
             };
         }
-        // 処理結果が存在する場合.
-        // ヘッダに対してBody条件をセット.
-        resBody = setHeaderToBody(resHeaders, resBody);
-        // 処理返却.
-        return {
-            statusCode: resState.getStatus(),
-            headers: resHeaders.toMap(),
-            body: resBody
-        };
 
     } catch(err) {
+
         // ※ 「externalなfunctionを実行」では、以下の条件において、
-        //    明確なエラーハンドリングが難しい(面倒)なので、全て
+        //    今のところ明確なエラーハンドリングが難しい(面倒)なので、全て
         //    httpStatus = 500 で処理している.
-        //    1. ファイルが存在しない 404.
-        //    2. アクセス権限がない 401.
-        //    3. 取得したJavascriptにエラーがある 500.
+        //     1. ファイルが存在しない 404.
+        //     2. アクセス権限がない 401.
+        //     3. 取得したJavascriptにエラーがある 500.
 
         // エラーログ出力.
         console.error("[LFU] error: " + err);
+
         // エラーの場合.
         const resBody = stringToBinary(
-            "error 500: " + httpStatus.statusToMessage(500));
+            "error 500: " + httpStatus.toMessage(500));
         // 新しいレスポンスヘッダを作成.
-        resHeaders = httpHeader.create();
+        resHeader = httpHeader.create();
         // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-        resHeaders.put("content-type", getMimeType("text"));
+        resHeader.put("content-type", getMimeType("text").type);
         // レスポンス返却のBody長をセット.
-        resHeaders.put("content-length", resBody.length);
+        resHeader.put("content-length", resBody.length);
         return {
             statusCode: 500,
-            headers: resHeaders.toMap(),
+            headers: resHeader.toHeaders(),
             body: resBody
         };
     }    
