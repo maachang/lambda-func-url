@@ -48,7 +48,7 @@ const getEnv = function(name) {
     return process.env[name];
 }
 
-// カンマ[,]単位で区切る.
+// カンマ[,]単位で区切ってArray返却.
 // value 文字列を設定します.
 // 戻り値: カンマで区切られた内容がArrayで返却されます.
 const parseComma = function(value) {
@@ -64,6 +64,9 @@ const parseComma = function(value) {
 // keys MapのKey群を設定します.
 // array Arrayを設定します.
 // 戻り値: Mapが返却されます.
+//        keys = ["a", "b", "c"];
+//        array = [1, 2, 3];
+//        戻り値: {"a": 1, "b": 2, "c": 3}
 const arrayToMap = function(keys, array) {
     const len = keys.length;
     const ret = {};
@@ -75,32 +78,35 @@ const arrayToMap = function(keys, array) {
 }
 
 //--------------------------------------------------------
-// [環境変数]基本設定.
+// [環境変数]定義.
 //--------------------------------------------------------
 
-// [環境変数]メインで利用するrequire.
+// [環境変数]メインで利用するrequireやrequest先.
 // この条件は[必須]です.
-// "MAIN_REQUIRE"="s3": S3をメインで利用する.
-// "MAIN_REQUIRE"="git": github repogitoryをメインで利用する.
-const _ENV_MAIN_REQUIRE = "MAIN_REQUIRE";
+// "MAIN_EXTERNAL"="s3": S3をメインで利用する場合.
+// "MAIN_EXTERNAL"="git": github repogitoryをメインで利用する場合.
+const _ENV_MAIN_EXTERNAL = "MAIN_EXTERNAL";
 
 // [環境変数]request時のカレントパス設定.
-// この条件は[必須]です.
-// 設定方法は REQUEST_PATH="requestPath"
+// この条件は[必須]です
+// 設定方法は
+//   "REQUEST_PATH"="currentPath"
 // と設定します.
 const _ENV_REQUEST_PATH = "REQUEST_PATH";
 
 // [環境変数]s3require, s3request時の接続設定.
-// "MAIN_REQUIRE"="s3" の場合は、この条件は[必須]です.
-// 設定方法は S3_CONNECT="requirePath, region"
+// "MAIN_EXTERNAL"="s3" の場合は、この条件は[必須]です.
+// 設定方法は
+//   "S3_CONNECT"="requirePath, region"
 // とカンマ[,]単位で区切って設定します.
 // 最後の "region" は、省略された場合、東京リージョン
 //「ap-northeast-1」になります.
 const _ENV_S3_CONNECT = "S3_CONNECT";
 
 // [環境変数]grequire, grequest時の接続設定.
-// "MAIN_REQUIRE"="git" の場合は、この条件は[必須]です.
-// 設定方法は GIT_CONNECT="organization, repo, branch, requirePath, token"
+// "MAIN_EXTERNAL"="git" の場合は、この条件は[必須]です.
+// 設定方法は
+//   "GIT_CONNECT"="organization, repo, branch, requirePath, token"
 // とカンマ[,]単位で区切って設定します.
 // 最後の "token" は対象github repogitoryがprivateの場合
 // 必要です.
@@ -116,36 +122,42 @@ const _ENV_TIMEOUT = "TIMEOUT";
 // この値は[任意]で、デフォルト値はキャッシュONです.
 const _ENV_NONE_CACHE = "NONE_CACHE";
 
-// [mainRequest]S3の場合.
-const _MAIN_REQUEST_S3 = 0;
+// [mainExternal]S3の場合.
+const _MAIN_S3_EXTERNAL = 0;
 
-// [mainRequest]Gitの場合.
-const _MAIN_REQUEST_GIT = 1;
+// [mainExternal]Gitの場合.
+const _MAIN_GIT_EXTERNAL = 1;
 
 // 環境変数を取得解析して返却. 
 const analysisEnv = function() {
-    let mainRequest = getEnv(_ENV_MAIN_REQUIRE);
+    // s3 or git メインで利用する外部接続先.
+    let mainExternal = getEnv(_ENV_MAIN_EXTERNAL);
+    // request接続先のカレントパス.
     let requestPath = getEnv(_ENV_REQUEST_PATH);
+    // 外部接続先's3'の接続基本設定.
     let s3Connect = getEnv(_ENV_S3_CONNECT);
+    // 外部接続先'github'の接続基本設定.
     let gitConnect = getEnv(_ENV_GIT_CONNECT);
+    // キャッシュタイムアウト.
     let timeout = getEnv(_ENV_TIMEOUT);
+    // 基本キャッシュなし条件.
     let noneCache = getEnv(_ENV_NONE_CACHE);
 
-    // mainRequest.
-    if(mainRequest == undefined) {
-        error(_ENV_MAIN_REQUIRE + " is a required setting.");
+    // メインで利用する外部接続先の存在確認.
+    if(mainExternal == undefined) {
+        error(_ENV_MAIN_EXTERNAL + " is a required setting.");
     }
-    // 小文字変換.
-    mainRequest = mainRequest.trim().toLowerCase();
-    if(mainRequest == "s3") {
+    // 利用External接続先を判別.
+    mainExternal = mainExternal.trim().toLowerCase();
+    if(mainExternal == "s3") {
         // s3.
-        mainRequest = _MAIN_REQUEST_S3;
-    } else if(mainRequest == "git") {
+        mainExternal = _MAIN_S3_EXTERNAL;
+    } else if(mainExternal == "git") {
         // git.
-        mainRequest = _MAIN_REQUEST_GIT;
+        mainExternal = _MAIN_GIT_EXTERNAL;
     } else {
-        error("Setting " + _ENV_MAIN_REQUIRE +
-            ": " + mainRequest + " is out of scope.");
+        error("Setting " + _ENV_MAIN_EXTERNAL +
+            ": " + mainExternal + " is out of scope.");
     }
 
     // requestPath.
@@ -156,8 +168,8 @@ const analysisEnv = function() {
 
     // s3Connect.
     if(s3Connect == undefined) {
-        // mainRequest が S3の場合.
-        if(mainRequest == _MAIN_REQUEST_S3) {
+        // mainExternal が S3の場合.
+        if(mainExternal == _MAIN_S3_EXTERNAL) {
             error(_ENV_S3_CONNECT + " is a required setting.");
         }
     } else {
@@ -172,8 +184,8 @@ const analysisEnv = function() {
 
     // gitConnect.
     if(gitConnect == undefined) {
-        // mainRequest が GITの場合.
-        if(mainRequest == _MAIN_REQUEST_GIT) {
+        // mainExternal が GITの場合.
+        if(mainExternal == _MAIN_GIT_EXTERNAL) {
             error(_ENV_GIT_CONNECT + " is a required setting.");
         }
     } else {
@@ -207,7 +219,7 @@ const analysisEnv = function() {
 
     // 解析結果を返却.
     return {
-        mainRequest: mainRequest,
+        mainExternal: mainExternal,
         requestPath: requestPath,
         s3Connect: s3Connect,
         gitConnect: gitConnect,
@@ -259,7 +271,7 @@ const start = function(filterFunc, originMime) {
             timeout: env.timeout,
             nonCache: env.noneCache
         });
-        // トークンが存在する場合.
+        // 対象gitHubのprivateアクセス用トークンが存在する場合.
         if(env.gitConnect.token != undefined) {
             greqreg.setOrganizationToken(
                 env.gitConnect.organization,
@@ -267,10 +279,6 @@ const start = function(filterFunc, originMime) {
             )
         }
     }
-
-    // requestFunction呼び出し処理のFunction登録
-    regRequestRequireFunc(env);
-
     // filterFuncをセット.
     _filterFunction = (typeof(filterFunc) != "function") ?
         undefined : filterFunc;
@@ -279,9 +287,17 @@ const start = function(filterFunc, originMime) {
     _originMimeFunc = (typeof(originMime) != "function") ?
         undefined : originMime;
     
+    // requestFunction呼び出し処理のFunction登録
+    regRequestRequireFunc(env);
+
+    // _LFU_ENVをセット.
+    _LFU_ENV = env;
+    
     // main_handlerを返却.
     return _main_handler;
 }
+
+var _LFU_ENV = undefined;
 
 // requestFunction呼び出し処理.
 // 環境変数に従って専用のfunction(jsFlag, path)の
@@ -298,7 +314,8 @@ var _requestFunction = undefined;
 // 外部環境上で利用するrequireに対して、利用する事で環境依存を
 // 防ぐことができます.
 const regRequestRequireFunc = function(env) {
-    if(env.mainRequest == _MAIN_REQUEST_S3) {
+    let exrequire = null;
+    if(env.mainExternal == _MAIN_S3_EXTERNAL) {
         // s3用のrequest処理.
         _requestFunction = function(jsFlag, path) {
             // javascript実行呼び出し.
@@ -311,13 +328,9 @@ const regRequestRequireFunc = function(env) {
         };
 
         // s3用のrequire処理.
-        const exrequire = function(path, curerntPath, noneCache) {
+        exrequire = function(path, noneCache, curerntPath) {
             return s3require(path, curerntPath, noneCache);
         }
-        // exrequireをglobal設定に対して書き込み不可設定を行う.
-        Object.defineProperty(_g, "exrequire",
-            {writable: false, value: exrequire});
-
     } else {
         // github用のrequest処理.
         _requestFunction = function(jsFlag, path) {
@@ -339,15 +352,15 @@ const regRequestRequireFunc = function(env) {
         };
 
         // github用のrequire処理.
-        const exrequire = function(
-            path, organization, repo, branch, currentPath, noneCache) {
-            return grequire(path, organization, repo, branch,
+        exrequire = function(
+            path, noneCache, currentPath) {
+            return grequire(path, undefined, undefined, undefined,
                 currentPath, noneCache);
         }
-        // exrequireをglobal設定に対して書き込み不可設定を行う.
-        Object.defineProperty(_g, "exrequire",
-            {writable: false, value: exrequire});
     }
+    // exrequireをglobal設定に対して書き込み不可設定を行う.
+    Object.defineProperty(_g, "exrequire",
+        {writable: false, value: exrequire});
 }
 
 // filterFunction呼び出し処理.
@@ -531,7 +544,9 @@ const _main_handler = async function(event) {
             // 拡張子mimeType変換用.
             mimeType: getMimeType,
             // 元のeventをセット.
-            srcEvent: event
+            srcEvent: event,
+            // LFU_ENVをセット.
+            lfuEnv: _LFU_ENV
         };
 
         // filterFunctionが設定されてる場合呼び出す.
