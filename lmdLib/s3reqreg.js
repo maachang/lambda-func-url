@@ -6,7 +6,8 @@
 // require("s3reqreg.js")
 //
 // // カレントパスを設定する場合.
-// require("s3reqreg.js").set({contentPath: "s3://bucket/prefix/"});
+// require("s3reqreg.js").setOption(
+//   {contentPath: "s3://bucket/prefix/"});
 //
 // これら呼び出しで `s3require` が利用可能となります.
 // また、カレントパスを設定するとs3側に設置したjs内でのs3require
@@ -15,7 +16,8 @@
 // <例>
 // [Lambda]index.js
 // (async function() {
-// require("s3reqreg.js").set({contentPath: "s3://bucket/prefix/"});
+// require("s3reqreg.js").setOption(
+//   {contentPath: "s3://bucket/prefix/"});
 // const hoge = async s3require("hoge.js");
 //   ・・・・・
 // })();
@@ -99,7 +101,7 @@ const convertS3CurrentPath = function(path) {
 //        {timeout: number} キャッシュタイムアウトを設定します.
 //        {noneCache: boolean} 未キャッシュ条件を設定します.
 // 戻り値 exports と同等の内容が戻されます.
-const set = function(option) {
+const setOption = function(option) {
     // カレントパスを設定.
     let path = option.currentPath;
     if(typeof(path) == "string") {
@@ -345,7 +347,7 @@ const init = function() {
 /////////////////////////////////////////////////////
 // 外部定義.
 /////////////////////////////////////////////////////
-exports.set = set;
+exports.setOption = setOption;
 
 // 初期化設定を行って `s3require` をgrobalに登録.
 init();

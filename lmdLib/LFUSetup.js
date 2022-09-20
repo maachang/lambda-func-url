@@ -235,7 +235,7 @@ const start = function(filterFunc, originMime) {
     // s3接続定義が存在する場合.
     if(env.s3Connect != undefined) {
         // 基本設定.
-        s3reqreg.set({
+        s3reqreg.setOption({
             currentPath: env.s3Connect.requirePath,
             region: env.s3Connect.region,
             timeout: env.timeout,
@@ -247,7 +247,7 @@ const start = function(filterFunc, originMime) {
     const greqreg = require("./greqreg");
     // git接続定義が存在する場合.
     if(env.gitConnect != undefined) {
-        // github repogitory設定.
+        // 標準接続先のgithub repogitory設定.
         greqreg.setDefault(
             env.gitConnect.organization,
             env.gitConnect.repo,
@@ -268,8 +268,8 @@ const start = function(filterFunc, originMime) {
         }
     }
 
-    // requestFunction呼び出し処理のFunction生成.
-    createRequestFunc(env);
+    // requestFunction呼び出し処理のFunction登録
+    regRequestRequireFunc(env);
 
     // filterFuncをセット.
     _filterFunction = (typeof(filterFunc) != "function") ?
@@ -283,9 +283,21 @@ const start = function(filterFunc, originMime) {
     return _main_handler;
 }
 
-// requestFunction呼び出し処理のFunction生成.
+// requestFunction呼び出し処理.
+// 環境変数に従って専用のfunction(jsFlag, path)の
+// Functionが作成される.
+// jsFlag 実行するJavascriptを取得する場合は true.
+// path 対象のパスを設定.
+var _requestFunction = undefined;
+
+// request呼び出し・require呼び出し処理のFunction登録.
 // env analysisEnvで取得した環境変数の内容が設定されます.
-const createRequestFunc = function(env) {
+// 
+// 標準定義されたrequire呼び出し `exrequire` を定義します.
+// この条件は _requestFunction と同じく主たる外部環境に対して、
+// 外部環境上で利用するrequireに対して、利用する事で環境依存を
+// 防ぐことができます.
+const regRequestRequireFunc = function(env) {
     if(env.mainRequest == _MAIN_REQUEST_S3) {
         // s3用のrequest処理.
         _requestFunction = function(jsFlag, path) {
@@ -297,6 +309,15 @@ const createRequestFunc = function(env) {
             // s3contentsを実行してコンテンツを取得.
             return s3contents(path, env.requestPath);
         };
+
+        // s3用のrequire処理.
+        const exrequire = function(path, curerntPath, noneCache) {
+            return s3require(path, curerntPath, noneCache);
+        }
+        // exrequireをglobal設定に対して書き込み不可設定を行う.
+        Object.defineProperty(_g, "exrequire",
+            {writable: false, value: exrequire});
+
     } else {
         // github用のrequest処理.
         _requestFunction = function(jsFlag, path) {
@@ -316,15 +337,18 @@ const createRequestFunc = function(env) {
                 env.gitConnect.branch,
                 env.requestPath);
         };
+
+        // github用のrequire処理.
+        const exrequire = function(
+            path, organization, repo, branch, currentPath, noneCache) {
+            return grequire(path, organization, repo, branch,
+                currentPath, noneCache);
+        }
+        // exrequireをglobal設定に対して書き込み不可設定を行う.
+        Object.defineProperty(_g, "exrequire",
+            {writable: false, value: exrequire});
     }
 }
-
-// requestFunction呼び出し処理.
-// 環境変数に従って専用のfunction(jsFlag, path)の
-// Functionが作成される.
-// jsFlag 実行するJavascriptを取得する場合は true.
-// path 対象のパスを設定.
-var _requestFunction = undefined;
 
 // filterFunction呼び出し処理.
 // コンテンツ呼び出しの前処理を行い、コンテンツ利用に対して
@@ -453,6 +477,25 @@ const setHeaderToBody = function(header, body) {
     return body;
 }
 
+// レスポンス返却用情報を作成.
+// status レスポンスステータスコードを設定します.
+// headers レスポンスヘッダを設定します.
+// body レスポンスBodyを設定します.
+// 戻り値: objectが返却されます.
+const createResponse = function(status, headers, body) {
+    // 基本的な戻り値を設定.
+    const ret = {
+        statusCode: status|0,
+        headers: headers,
+        isBase64Encoded: false
+    };
+    // レスポンスBodyが存在する場合セット.
+    if(body != undefined && body != null) {
+        ret["body"] = body;
+    }
+    return ret;
+}
+
 // [Main]ハンドラー実行.
 // lambda-func-url に対する実行処理(HTTP or HTTPS)が行われるので、
 // ここでハンドラー実行処理を行う必要がある.
@@ -504,11 +547,10 @@ const _main_handler = async function(event) {
                 // ヘッダに対してBody条件をセット.
                 resBody = setHeaderToBody(resHeader, resBody);
                 // レスポンス返却.
-                return {
-                    statusCode: resState.getStatus(),
-                    headers: resHeader.toHeaders(),
-                    body: resBody
-                };
+                return createResponse(
+                    resState.getStatus(),
+                    resHeader.toHeaders(),
+                    resBody);
             }
         }
 
@@ -534,11 +576,11 @@ const _main_handler = async function(event) {
                 resHeader.put("content-type", resMimeType.type);
                 // レスポンス返却のBody長をセット.
                 resHeader.put("content-length", resBody.length);
-                return {
-                    statusCode: 200,
-                    headers: resHeader.toHeaders(),
-                    body: resBody
-                };
+                // レスポンス返却.
+                return createResponse(
+                    200,
+                    resHeader.toHeaders(),
+                    resBody);
             // エラーが発生した場合.
             } catch(e) {
                 // 404エラー返却.
@@ -551,11 +593,10 @@ const _main_handler = async function(event) {
                 // レスポンス返却のBody長をセット.
                 resHeader.put("content-length", resBody.length);
                 // ファイルが存在しない(404).
-                return {
-                    statusCode: 404,
-                    headers: resHeader.toHeaders(),
-                    body: resBody
-                };
+                return createResponse(
+                    404,
+                    resHeader.toHeaders(),
+                    resBody);
             }
         }
 
@@ -588,21 +629,19 @@ const _main_handler = async function(event) {
                 // リダイレクト条件をヘッダにセットしてリダイレクト.
                 resHeader.put("location", resState.getRedirectURL());
                 resHeader.put("content-length", 0);
-                // 処理返却.
-                return {
-                    statusCode: resState.getStatus(),
-                    headers: resHeader.toHeaders()
-                };
+                // レスポンス返却.
+                return createResponse(
+                    resState.getStatus(),
+                    resHeader.toHeaders());
             // レスポンスBodyが存在しない場合.
             } else if(resBody == undefined || resBody == null) {
                 // mimeType=textでレスポンス0で返却.
                 resHeader.put("content-type", getMimeType("text").type);
                 resHeader.put("content-length", 0);
-                // 処理返却.
-                return {
-                    statusCode: resState.getStatus(),
-                    headers: resHeader.toHeaders()
-                };
+                // レスポンス返却.
+                return createResponse(
+                    resState.getStatus(),
+                    resHeader.toHeaders());
             }
             // 処理結果が存在する場合.
             // ヘッダに対してBody条件をセット.
@@ -611,12 +650,11 @@ const _main_handler = async function(event) {
             //  object: json形式で返却.
             // これ以外は 強制的に文字列変換して text形式で返却.
             resBody = setHeaderToBody(resHeader, resBody);
-            // 処理返却.
-            return {
-                statusCode: resState.getStatus(),
-                headers: resHeader.toHeaders(),
-                body: resBody
-            };
+            // レスポンス返却.
+            return createResponse(
+                resState.getStatus(),
+                resHeader.toHeaders(),
+                resBody);
         }
 
     } catch(err) {
@@ -640,11 +678,11 @@ const _main_handler = async function(event) {
         resHeader.put("content-type", getMimeType("text").type);
         // レスポンス返却のBody長をセット.
         resHeader.put("content-length", resBody.length);
-        return {
-            statusCode: 500,
-            headers: resHeader.toHeaders(),
-            body: resBody
-        };
+        // レスポンス返却.
+        return createResponse(
+            500,
+            resHeader.toHeaders(),
+            resBody);
     }    
 };
 

@@ -138,6 +138,7 @@ let _DEFAULT_REPO = null;
 // デフォルトの接続先branch.
 let _DEFAULT_BRANCH = null;
 
+// 標準のgithubリポジトリ接続情報を設定します.
 // organization githubのorganization を設定します.
 // repo githubのrepogitory を設定します.
 // branch 対象のbranch を設定します.
