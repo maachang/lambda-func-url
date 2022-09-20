@@ -495,7 +495,7 @@ const setHeaderToBody = function(header, body) {
 // headers レスポンスヘッダを設定します.
 // body レスポンスBodyを設定します.
 // 戻り値: objectが返却されます.
-const createResponse = function(status, headers, body) {
+const returnResponse = function(status, headers, body) {
     // 基本的な戻り値を設定.
     const ret = {
         statusCode: status|0,
@@ -562,7 +562,7 @@ const _main_handler = async function(event) {
                 // ヘッダに対してBody条件をセット.
                 resBody = setHeaderToBody(resHeader, resBody);
                 // レスポンス返却.
-                return createResponse(
+                return returnResponse(
                     resState.getStatus(),
                     resHeader.toHeaders(),
                     resBody);
@@ -592,7 +592,7 @@ const _main_handler = async function(event) {
                 // レスポンス返却のBody長をセット.
                 resHeader.put("content-length", resBody.length);
                 // レスポンス返却.
-                return createResponse(
+                return returnResponse(
                     200,
                     resHeader.toHeaders(),
                     resBody);
@@ -608,7 +608,7 @@ const _main_handler = async function(event) {
                 // レスポンス返却のBody長をセット.
                 resHeader.put("content-length", resBody.length);
                 // ファイルが存在しない(404).
-                return createResponse(
+                return returnResponse(
                     404,
                     resHeader.toHeaders(),
                     resBody);
@@ -645,7 +645,7 @@ const _main_handler = async function(event) {
                 resHeader.put("location", resState.getRedirectURL());
                 resHeader.put("content-length", 0);
                 // レスポンス返却.
-                return createResponse(
+                return returnResponse(
                     resState.getStatus(),
                     resHeader.toHeaders());
             // レスポンスBodyが存在しない場合.
@@ -654,7 +654,7 @@ const _main_handler = async function(event) {
                 resHeader.put("content-type", getMimeType("text").type);
                 resHeader.put("content-length", 0);
                 // レスポンス返却.
-                return createResponse(
+                return returnResponse(
                     resState.getStatus(),
                     resHeader.toHeaders());
             }
@@ -666,7 +666,7 @@ const _main_handler = async function(event) {
             // これ以外は 強制的に文字列変換して text形式で返却.
             resBody = setHeaderToBody(resHeader, resBody);
             // レスポンス返却.
-            return createResponse(
+            return returnResponse(
                 resState.getStatus(),
                 resHeader.toHeaders(),
                 resBody);
@@ -694,7 +694,7 @@ const _main_handler = async function(event) {
         // レスポンス返却のBody長をセット.
         resHeader.put("content-length", resBody.length);
         // レスポンス返却.
-        return createResponse(
+        return returnResponse(
             500,
             resHeader.toHeaders(),
             resBody);
