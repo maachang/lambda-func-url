@@ -290,14 +290,9 @@ const start = function(filterFunc, originMime) {
     // requestFunction呼び出し処理のFunction登録
     regRequestRequireFunc(env);
 
-    // _LFU_ENVをセット.
-    _LFU_ENV = env;
-    
     // main_handlerを返却.
     return _main_handler;
 }
-
-var _LFU_ENV = undefined;
 
 // requestFunction呼び出し処理.
 // 環境変数に従って専用のfunction(jsFlag, path)の
@@ -544,9 +539,7 @@ const _main_handler = async function(event) {
             // 拡張子mimeType変換用.
             mimeType: getMimeType,
             // 元のeventをセット.
-            srcEvent: event,
-            // LFU_ENVをセット.
-            lfuEnv: _LFU_ENV
+            srcEvent: event
         };
 
         // filterFunctionが設定されてる場合呼び出す.
