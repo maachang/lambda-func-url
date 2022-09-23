@@ -4,14 +4,14 @@
 //
 // index.js
 // ------------------------------------------------------
-// exports.handler async => {
-//   return await require("./LFUSetup.js").start();
+// exports.handler async (event) => {
+//   return await (require("./LFUSetup.js").start())(event);
 // }
 // ------------------------------------------------------
 // と言う感じで定義することで、lambda-func-url のセットアップ
 // を行い、正しく起動することができます.
 // 
-// また `require("./LFUSetup.js").start();` では以下の引数を
+// また `require("./LFUSetup.js").start()` では以下の引数を
 // 設定する事が可能です.
 //
 // filterFunc コンテンツ実行の前処理を行う場合は設定します.
@@ -117,10 +117,15 @@ const _ENV_GIT_CONNECT = "GIT_CONNECT";
 // この値は[任意]で、デフォルト値は30000ミリ秒です.
 const _ENV_TIMEOUT = "TIMEOUT";
 
-// [環境変数]grequire, grequestのキャッシュの有無を設定します.
+// [環境変数]grequire, grequestのキャッシュを行わない場合設定します.
 // キャッシュをしない場合は REQUIRE_NONE_CACHE=true と設定します.
 // この値は[任意]で、デフォルト値はキャッシュONです.
 const _ENV_NONE_CACHE = "NONE_CACHE";
+
+// [環境変数]GZIP圧縮を行わない場合設定します.
+// GZIP圧縮をしない場合は NONE_GZIP=true と設定します.
+// この値は[任意]で、デフォルト値はGZIPはONです.
+const _ENV_NONE_GZIP = "NONE_GZIP";
 
 // [mainExternal]S3の場合.
 const _MAIN_S3_EXTERNAL = 0;
@@ -142,6 +147,8 @@ const analysisEnv = function() {
     let timeout = getEnv(_ENV_TIMEOUT);
     // 基本キャッシュなし条件.
     let noneCache = getEnv(_ENV_NONE_CACHE);
+    // 基本GZIPなし条件.
+    let noneGzip = getEnv(_ENV_NONE_GZIP);
 
     // メインで利用する外部接続先の存在確認.
     if(mainExternal == undefined) {
@@ -217,6 +224,11 @@ const analysisEnv = function() {
         noneCache = noneCache == true;
     }
 
+    // noneGzip.
+    if(noneGzip != undefined) {
+        noneGzip = noneGzip == true;
+    }
+
     // 解析結果を返却.
     return {
         mainExternal: mainExternal,
@@ -224,7 +236,8 @@ const analysisEnv = function() {
         s3Connect: s3Connect,
         gitConnect: gitConnect,
         timeout: timeout,
-        noneCache: noneCache
+        noneCache: noneCache,
+        noneGzip: noneGzip
     };
 }
 
@@ -279,6 +292,9 @@ const start = function(filterFunc, originMime) {
             )
         }
     }
+    // 取得した有効な環境変数をセット.
+    _env = env;
+
     // filterFuncをセット.
     _filterFunction = (typeof(filterFunc) != "function") ?
         undefined : filterFunc;
@@ -293,6 +309,9 @@ const start = function(filterFunc, originMime) {
     // main_handlerを返却.
     return _main_handler;
 }
+
+// 有効な環境変数.
+var _env = undefined;
 
 // requestFunction呼び出し処理.
 // 環境変数に従って専用のfunction(jsFlag, path)の
@@ -485,23 +504,47 @@ const setHeaderToBody = function(header, body) {
     return body;
 }
 
+// HTTP-NoCacheヘッダをセット.
+// headerObject 対象のHTTPヘッダ(Object型)を設定します.
+// 戻り値: Objectが返却されます.
+const setNoneCacheHeader = function(headerObject) {
+    // HTTPレスポンスキャッシュなしをセット.
+    headerObject["cache-control"] = "no-cache";
+    headerObject["pragma"] = "no-cache";
+    headerObject["expire"] = "-1";
+    return headerObject;
+}
+
 // レスポンス返却用情報を作成.
 // status レスポンスステータスコードを設定します.
-// headers レスポンスヘッダを設定します.
+// headerObject レスポンスヘッダ(Object型)を設定します.
 // body レスポンスBodyを設定します.
 // 戻り値: objectが返却されます.
-const returnResponse = function(status, headers, body) {
-    // 基本的な戻り値を設定.
+const returnResponse = function(status, headerObject, body) {
+    // Lambdaの関数URL戻り値を設定.
     const ret = {
-        statusCode: status|0,
-        headers: headers,
-        isBase64Encoded: false
+        statusCode: status|0
+        ,statusMessage: httpStatus.toMessage(status|0)
+        ,headers: setNoneCacheHeader(headerObject)
+        ,isBase64Encoded: false
     };
     // レスポンスBodyが存在する場合セット.
     if(body != undefined && body != null) {
         ret["body"] = body;
     }
     return ret;
+}
+
+// パス情報の変換処理.
+// 例えば xxx/ でパスが終わってる場合は
+// xxx/index として変換処理を行います.
+// path 対象のパスを設定します.
+// 戻り値: ディレクトリ指定の場合は index と言う名前を追加します.
+const convertHttpPath = function(path) {
+    if((path = path.trim()).endsWith("/")) {
+        return path += "index";
+    }
+    return path;
 }
 
 // [Main]ハンドラー実行.
@@ -521,25 +564,27 @@ const _main_handler = async function(event) {
         // AWSLambdaの関数URLパラメータから必要な内容を取得.
         const params = {
             // httpメソッド.
-            method: event.requestContext.http.method,
+            method: event.requestContext.http.method
             // EndPoint(string)パス.
-            path: event.rawPath,
+            ,path: convertHttpPath(event.rawPath)
             // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
-            requestHeader: httpHeader.create(event.headers),
+            ,requestHeader: httpHeader.create(event.headers)
             // リクエストパラメータ(Object).
-            requestParams: getQueryParams(event),
+            ,requestParams: getQueryParams(event)
             // リクエストBody.
-            requestBody: event.body == undefined || event.body == null ?
-                undefined : event.body,
+            ,requestBody: event.body == undefined || event.body == null ?
+                undefined : event.body
             // リクエストBodyはBase64変換が必要.
-            isBase64Encoded: body.isBase64Encoded,
+            ,isBase64Encoded: body.isBase64Encoded
             // EndPoint(string)パスに対するファイルの拡張子.
             // undefinedの場合、js実行結果を返却させる.
-            extension: getPathToExtends(event.rawPath),
+            ,extension: getPathToExtends(event.rawPath)
             // 拡張子mimeType変換用.
-            mimeType: getMimeType,
+            ,mimeType: getMimeType
             // 元のeventをセット.
-            srcEvent: event
+            ,srcEvent: event
+            // 有効な環境変数.
+            ,env: _env
         };
 
         // filterFunctionが設定されてる場合呼び出す.
@@ -574,8 +619,9 @@ const _main_handler = async function(event) {
                 const resMimeType = getMimeType(params.extension);
 
                 // 圧縮対象の場合.
-                if(resMimeType.gz == true) {
-                    // 圧縮処理.
+                // または環境変数で、圧縮なし指定でない場合.
+                if(resMimeType.gz == true && _env.noneGzip == false) {
+                    // 圧縮処理を行う.
                     resBody = await mime.compressToContents(
                         params.requestHeader, resHeader, resBody);
                 }
@@ -675,7 +721,7 @@ const _main_handler = async function(event) {
         //     3. 取得したJavascriptにエラーがある 500.
 
         // エラーログ出力.
-        console.error("[LFU] error: " + err);
+        console.error("### [LFU] error: " + err);
 
         // エラーの場合.
         const resBody = stringToBinary(

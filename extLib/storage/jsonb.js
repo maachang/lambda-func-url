@@ -13,7 +13,7 @@ const encode = function(value) {
     // バイナリを格納するArrayオブジェクトを生成.
     const bin = [];
     // エンコード処理.
-    return s3require("storage/convb.js")
+    return exrequire("storage/convb.js")
     .then((result) => {
         // 変換結果をUint8Arrayに変換.
         return Uint8Array.from(
@@ -29,7 +29,7 @@ const decode = function(bin) {
     // ポジションを取得.
     const pos = [0];
     // デコード処理.
-    return s3require("storage/convb.js")
+    return exrequire("storage/convb.js")
     .then((result) => {
         return result.decodeValue(pos, bin);
     });

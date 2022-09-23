@@ -192,7 +192,7 @@ const create = function(bucket, prefix, options) {
     // keys インデックスキー {key: value ... } を設定します.
     // value 出力する内容(json)を設定します.
     ret.put = function(tableName, keys, value) {
-        return s3require("storage/jsonb.js")
+        return exrequire("storage/jsonb.js")
         .then((jsonb) => {
             const params = getS3Params(
                 bucketName, prefixName, tableName, keys);
@@ -219,7 +219,7 @@ const create = function(bucket, prefix, options) {
             return null; 
         })
         .then((value) => {
-            return s3require("storage/jsonb.js")
+            return exrequire("storage/jsonb.js")
             .then((jsonb) => {
                 return jsonb.decode(value);
             });
