@@ -440,11 +440,13 @@ const getQueryParams = function(event) {
 // 戻り値: 拡張子が無い場合は undefined.
 //        拡張子が存在する場合は拡張子返却(toLowerCase対応)
 const getPathToExtends = function(path) {
-    let p = path.lastIndex("/");
-    if(p == -1) {
-        p = 0;
+    // 最後が / の場合は拡張子なし.
+    if((path = path.trim()).endsWith("/")) {
+        return undefined;
     }
-    let obj = path.substrinng(p);
+    // 最後にある / の位置を取得.
+    let p = path.lastIndexOf("/");
+    let obj = path.substring(p);
     p = obj.lastIndexOf(".");
     if(p == -1) {
         return undefined;
@@ -571,11 +573,6 @@ const _main_handler = async function(event) {
             ,requestHeader: httpHeader.create(event.headers)
             // リクエストパラメータ(Object).
             ,requestParams: getQueryParams(event)
-            // リクエストBody.
-            ,requestBody: event.body == undefined || event.body == null ?
-                undefined : event.body
-            // リクエストBodyはBase64変換が必要.
-            ,isBase64Encoded: body.isBase64Encoded
             // EndPoint(string)パスに対するファイルの拡張子.
             // undefinedの場合、js実行結果を返却させる.
             ,extension: getPathToExtends(event.rawPath)
@@ -586,6 +583,26 @@ const _main_handler = async function(event) {
             // 有効な環境変数.
             ,env: _env
         };
+
+        // bodyが空の場合.
+        if(event.body == undefined || event.body == null) {
+            // 空をセット.
+            params.body = undefined;
+            params.isBodyBinary = false;
+        
+        // bodyが存在する場合.
+        } else {
+            // Base64で設定されている場合.
+            if(event.body.isBase64Encoded == true) {
+                // Base64からバイナリ変換してバイナリとしてセット.
+                params.body = Buffer.from(event.body, 'base64');
+                params.isBodyBinary = true;
+            } else {
+                // 文字列としてセット.
+                params.body = event.body;
+                params.isBodyBinary = false;
+            }
+        }
 
         // filterFunctionが設定されてる場合呼び出す.
         if(_filterFunction != undefined) {
