@@ -1,39 +1,25 @@
 //////////////////////////////////////////////////////////
 // lambda-func-url の環境設定用セットアップ.
-// 形としては、以下のような形で行います.
-//
-// index.js
-// ------------------------------------------------------
-// exports.handler async (event) => {
-//   return await (require("./LFUSetup.js").start())(event);
-// }
-// ------------------------------------------------------
-// と言う感じで定義することで、lambda-func-url のセットアップ
-// を行い、正しく起動することができます.
-// 
-// また `require("./LFUSetup.js").start()` では以下の引数を
-// 設定する事が可能です.
-//
-// filterFunc コンテンツ実行の前処理を行う場合は設定します.
-// originMime 拡張MimeTypeを設定します.
-//            function(extends)が必要で、拡張子の結果に対して
-//            戻り値が {type: mimeType, gz: boolean}を返却する
-//            必要があります(非対応の場合は undefined).
-// 
-// 
-//
 //////////////////////////////////////////////////////////
 (function(_g) {
 'use strict'
 
+// ローカルrequire.
+// name LFUSetup.jsと同じ位置にあるライブラリ名を設定します.
+// 戻り値: ローカルライブラリが返却されます.
+//@local=_local_require, name
+const _local_require = function(name) {
+    return require("./" + name + ".js");
+}
+
 // Lambdaに適した最低限のMimeType.
-const mime = require("./mimeType");
+const mime = _local_require("mimeType");
 
 // HTTPステータス.
-const httpStatus = require("./httpStatus.js");
+const httpStatus = _local_require("httpStatus");
 
 // HTTPヘッダ.
-const httpHeader = require("./httpHeader.js");
+const httpHeader = _local_require("httpHeader");
 
 // エラー例外処理.
 // message　エラーメッセージを設定します.
@@ -256,7 +242,7 @@ const start = function(filterFunc, originMime) {
     ////////////////////////////////////////
 
     // s3reqreg.
-    const s3reqreg = require("./s3reqreg");
+    const s3reqreg = _local_require("s3reqreg");
     // s3接続定義が存在する場合.
     if(env.s3Connect != undefined) {
         // 基本設定.
@@ -269,7 +255,7 @@ const start = function(filterFunc, originMime) {
     }
 
     // greqreg.
-    const greqreg = require("./greqreg");
+    const greqreg = _local_require("greqreg");
     // git接続定義が存在する場合.
     if(env.gitConnect != undefined) {
         // 標準接続先のgithub repogitory設定.
@@ -510,11 +496,30 @@ const setHeaderToBody = function(header, body) {
 // headerObject 対象のHTTPヘッダ(Object型)を設定します.
 // 戻り値: Objectが返却されます.
 const setNoneCacheHeader = function(headerObject) {
-    // HTTPレスポンスキャッシュなしをセット.
-    headerObject["cache-control"] = "no-cache";
-    headerObject["pragma"] = "no-cache";
-    headerObject["expire"] = "-1";
+    // HTTPレスポンスキャッシュ系のコントロールが設定されていない
+    // 場合にキャッシュなしを設定する.
+    if(headerObject["cache-control"] == undefined) {
+        headerObject["cache-control"] = "no-cache";
+    }
+    if(headerObject["pragma"] == undefined) {
+        headerObject["pragma"] = "no-cache";
+    }
+    if(headerObject["expire"] == undefined) {
+        headerObject["expire"] = "-1";
+    }
     return headerObject;
+}
+
+// パス情報の変換処理.
+// 例えば xxx/ でパスが終わってる場合は
+// xxx/index として変換処理を行います.
+// path 対象のパスを設定します.
+// 戻り値: ディレクトリ指定の場合は index と言う名前を追加します.
+const convertHttpPath = function(path) {
+    if((path = path.trim()).endsWith("/")) {
+        return path += "index";
+    }
+    return path;
 }
 
 // レスポンス返却用情報を作成.
@@ -537,16 +542,45 @@ const returnResponse = function(status, headerObject, body) {
     return ret;
 }
 
-// パス情報の変換処理.
-// 例えば xxx/ でパスが終わってる場合は
-// xxx/index として変換処理を行います.
-// path 対象のパスを設定します.
-// 戻り値: ディレクトリ指定の場合は index と言う名前を追加します.
-const convertHttpPath = function(path) {
-    if((path = path.trim()).endsWith("/")) {
-        return path += "index";
+// 実行結果の戻り値を出力.
+// resState 対象のhttpStatus.jsオブジェクトを設定します.
+// resHeader 対象のhttpHeader.jsオブジェクトを設定します.
+// resBody 対象のBody情報を設定します.
+// 戻り値: returnResponse条件が返却されます
+const resultOut = function(resState, resHeader, resBody) {
+    // 実行結果リダイレクト条件が設定されている場合.
+    if(resState.isRedirect()) {
+        // 新しいレスポンスヘッダを作成.
+        resHeader = httpHeader.create();
+        // リダイレクト条件をヘッダにセットしてリダイレクト.
+        resHeader.put("location", resState.getRedirectURL());
+        resHeader.put("content-length", 0);
+        // レスポンス返却.
+        return returnResponse(
+            resState.getStatus(),
+            resHeader.toHeaders());
+    // レスポンスBodyが存在しない場合.
+    } else if(resBody == undefined || resBody == null) {
+        // mimeType=textでレスポンス0で返却.
+        resHeader.put("content-type", getMimeType("text").type);
+        resHeader.put("content-length", 0);
+        // レスポンス返却.
+        return returnResponse(
+            resState.getStatus(),
+            resHeader.toHeaders());
     }
-    return path;
+    // 処理結果が存在する場合.
+    // ヘッダに対してBody条件をセット.
+    // 戻り値に対して、以下のcontent-typeをセット.
+    //  string: HTML形式で返却.
+    //  object: json形式で返却.
+    // これ以外は 強制的に文字列変換して text形式で返却.
+    resBody = setHeaderToBody(resHeader, resBody);
+    // レスポンス返却.
+    return returnResponse(
+        resState.getStatus(),
+        resHeader.toHeaders(),
+        resBody);
 }
 
 // [Main]ハンドラー実行.
@@ -566,7 +600,7 @@ const _main_handler = async function(event) {
         // AWSLambdaの関数URLパラメータから必要な内容を取得.
         const params = {
             // httpメソッド.
-            method: event.requestContext.http.method
+            method: event.requestContext.http.method.toUpperCase()
             // EndPoint(string)パス.
             ,path: convertHttpPath(event.rawPath)
             // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
@@ -611,16 +645,18 @@ const _main_handler = async function(event) {
             //  string: HTML形式で返却.
             //  object: json形式で返却.
             // これ以外は 強制的に文字列変換して text形式で返却.
+            const srcResState = resState.getStatus();
             let resBody = _filterFunction(resState, resHeader, params);
+
+            // HttpStatusが変更された場合.
+            // リダイレクト設定が行われてる場合.
             // 実行に対する戻り値が存在する場合は、コンテンツ実行は行わない.
-            if(resBody != undefined && resBody != null) {
-                // ヘッダに対してBody条件をセット.
-                resBody = setHeaderToBody(resHeader, resBody);
-                // レスポンス返却.
-                return returnResponse(
-                    resState.getStatus(),
-                    resHeader.toHeaders(),
-                    resBody);
+            if(srcResState != resState.getStatus() ||
+                resState.isRedirect() ||
+                resBody != undefined && resBody != null) {
+
+                // レスポンス出力.
+                return resultOut(resState, resHeader, resBody);
             }
         }
 
@@ -693,39 +729,8 @@ const _main_handler = async function(event) {
             // js実行.
             let resBody = await func(resState, resHeader, params);
 
-            // 実行結果リダイレクト条件が設定されている場合.
-            if(resState.isRedirect()) {
-                // 新しいレスポンスヘッダを作成.
-                resHeader = httpHeader.create();
-                // リダイレクト条件をヘッダにセットしてリダイレクト.
-                resHeader.put("location", resState.getRedirectURL());
-                resHeader.put("content-length", 0);
-                // レスポンス返却.
-                return returnResponse(
-                    resState.getStatus(),
-                    resHeader.toHeaders());
-            // レスポンスBodyが存在しない場合.
-            } else if(resBody == undefined || resBody == null) {
-                // mimeType=textでレスポンス0で返却.
-                resHeader.put("content-type", getMimeType("text").type);
-                resHeader.put("content-length", 0);
-                // レスポンス返却.
-                return returnResponse(
-                    resState.getStatus(),
-                    resHeader.toHeaders());
-            }
-            // 処理結果が存在する場合.
-            // ヘッダに対してBody条件をセット.
-            // 戻り値に対して、以下のcontent-typeをセット.
-            //  string: HTML形式で返却.
-            //  object: json形式で返却.
-            // これ以外は 強制的に文字列変換して text形式で返却.
-            resBody = setHeaderToBody(resHeader, resBody);
-            // レスポンス返却.
-            return returnResponse(
-                resState.getStatus(),
-                resHeader.toHeaders(),
-                resBody);
+            // レスポンス出力.
+            return resultOut(resState, resHeader, resBody);
         }
 
     } catch(err) {
