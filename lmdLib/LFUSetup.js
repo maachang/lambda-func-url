@@ -104,7 +104,7 @@ const _ENV_GIT_CONNECT = "GIT_CONNECT";
 const _ENV_TIMEOUT = "TIMEOUT";
 
 // [環境変数]grequire, grequestのキャッシュを行わない場合設定します.
-// キャッシュをしない場合は REQUIRE_NONE_CACHE=true と設定します.
+// キャッシュをしない場合は NONE_CACHE=true と設定します.
 // この値は[任意]で、デフォルト値はキャッシュONです.
 const _ENV_NONE_CACHE = "NONE_CACHE";
 
