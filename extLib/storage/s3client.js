@@ -7,28 +7,28 @@
 // aws-sdk javascript V2.
 const AWS = require('aws-sdk');
 
-// S3Clientを生成.
+// S3Clientを取得.
 // region 対象のリージョンを設定します.
-// 戻り値: s3Clientが返却されます.
+// 戻り値: S3Clientが発行されたPromiseが返却されます.
 const create = function(region) {
-    try {
-        return _s3OriginClientObject(
-            new AWS.S3({
-                region: _region(region)
-            })
-        );
-    } catch(e) {
+    return new Promise((resolve) => {
+        // ローカルのS3Clientを取得.
+        resolve(_s3OriginClientObject(new AWS.S3({
+            region: _region(region)
+        })));
+    })
+    .catch((e) => {
         console.error("## [ERROR]new AWS.S3 region: " +
             _region(region));
         throw e;
-    }
+    });
 }
 
 // 設定リージョンが存在しない場合`東京`を設定するようにする.
 const _region = function(region) {
     if(region == undefined || region == null) {
-        // 指定が無い場合は東京をセット.
-        region = "ap-northeast-1";
+    // 指定が無い場合は東京をセット.
+    region = "ap-northeast-1";
     }
     return region;
 }
@@ -68,12 +68,14 @@ const _s3OriginClientObject = function(s3cl) {
             _createS3Params(bucket, prefix)
         ).promise()
         .then((data) => {
-            // Contents[n].key だけを取得して返却.
+            // Contents[n].keyを取得し 今回指定したprefixを
+            // 除いた条件で返却.
             const list = data.Contents;
             const len = list.length;
             const ret = [];
             for(let i = 0; i < len; i ++) {
-                ret[i] = list[i].Key.trim();
+                ret[i] = list[i].Key.substring(
+                    prefix.length + 1);
             }
             return ret;
         })

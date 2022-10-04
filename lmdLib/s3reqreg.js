@@ -79,6 +79,7 @@ let _REGION = undefined;
 
 // S3カレントパスを変換.
 // path `s3://` から始まるカレントパスを設定します.
+// 戻り値: 正しいS3カレントパス
 const convertS3CurrentPath = function(path) {
     path = ("" + path).trim();
     // パスを解析.
@@ -92,7 +93,7 @@ const convertS3CurrentPath = function(path) {
         // `/` を最後尾に付与.
         path += "/";
     }
-    return ret;
+    return path;
 }
 
 // オプション設定.
@@ -336,12 +337,10 @@ const s3contents = function(path, curerntPath) {
 
 // 初期設定.
 const init = function() {
-    // s3requireをglobalに登録、global設定に対して書き込み不可設定を行う.
-    Object.defineProperty(_g, "s3require",
-        {writable: false, value: s3require});
-    // s3contentsをglobalに登録、global設定に対して書き込み不可設定を行う.
-    Object.defineProperty(_g, "s3contents",
-        {writable: false, value: s3contents});
+    // s3requireをglobalに登録.
+    _g.s3require = s3require;
+    // s3contentsをglobalに登録.
+    _g.s3contents = s3contents;
 }
 
 /////////////////////////////////////////////////////
@@ -353,4 +352,3 @@ exports.setOption = setOption;
 init();
 
 })(global);
-    

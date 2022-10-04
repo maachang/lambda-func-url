@@ -142,8 +142,6 @@ params = {
     ,mimeType: function(extension)
     // 元のeventをセット.
     ,srcEvent: object
-    // 設定された環境変数.
-    ,env: object
 };
 ~~~
 
@@ -215,6 +213,13 @@ LFUでは、Lambdaで[環境変数](https://docs.aws.amazon.com/ja_jp/lambda/lat
   [環境変数]GZIP圧縮を行わない場合設定します.<br>
   GZIP圧縮をしない場合は `NONE_GZIP`=`true` と設定します.<br>
   この値は[任意]で、デフォルト値はGZIPはON(false)です.<br>
+
+- `MAIN_S3_BUCKET`<br>
+  [環境変数]MAINバケット名.<br>
+  メインで利用するS3Bucket名を設定します.<br>
+  この値は[任意]ですが、メインS3バケット名を設定しておくとハードコーディングが不要なので設定を推奨します.<br>
+
+また、環境変数の値は `global.ENV` で取得可能です.
 
 ## LFUのexternalリソース利用概要
 

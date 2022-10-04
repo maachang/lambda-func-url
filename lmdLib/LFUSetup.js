@@ -113,6 +113,12 @@ const _ENV_NONE_CACHE = "NONE_CACHE";
 // この値は[任意]で、デフォルト値はGZIPはONです.
 const _ENV_NONE_GZIP = "NONE_GZIP";
 
+// [環境変数]MAINバケット名.
+// メインで利用するS3Bucket名を設定します.
+// この値は[任意]ですが、メインS3バケット名を設定しておくと
+// ハードコーディングが不要なので設定を推奨します.
+const _ENV_MAIN_S3_BUCKET = "MAIN_S3_BUCKET";
+
 // [mainExternal]S3の場合.
 const _MAIN_S3_EXTERNAL = 0;
 
@@ -135,6 +141,8 @@ const analysisEnv = function() {
     let noneCache = getEnv(_ENV_NONE_CACHE);
     // 基本GZIPなし条件.
     let noneGzip = getEnv(_ENV_NONE_GZIP);
+    // メインS3Bucket名.
+    let mainS3Bucket = getEnv(_ENV_MAIN_S3_BUCKET);
 
     // メインで利用する外部接続先の存在確認.
     if(mainExternal == undefined) {
@@ -215,6 +223,20 @@ const analysisEnv = function() {
         noneGzip = noneGzip == true;
     }
 
+    // mainS3Bucket.
+    if(mainS3Bucket != undefined) {
+        // s3:// などの条件を削除.
+        let p = mainS3Bucket.indexOf("://");
+        if(p != -1) {
+            mainS3Bucket = mainS3Bucket.substring(p + 3);
+        }
+        // 最後の / を削除.
+        mainS3Bucket = mainS3Bucket.trim();
+        if(mainS3Bucket.endsWith("/")) {
+            mainS3Bucket.substring(0, mainS3Bucket.length - 1);
+        }
+    }
+
     // 解析結果を返却.
     return {
         mainExternal: mainExternal,
@@ -223,81 +245,10 @@ const analysisEnv = function() {
         gitConnect: gitConnect,
         timeout: timeout,
         noneCache: noneCache,
-        noneGzip: noneGzip
+        noneGzip: noneGzip,
+        mainS3Bucket: mainS3Bucket
     };
 }
-
-// lambda-func-url初期処理.
-// filterFunc コンテンツ実行の前処理を行う場合は設定します.
-// originMime 拡張MimeTypeを設定します.
-//            function(extends)が必要で、拡張子の結果に対して
-//            戻り値が {type: mimeType, gz: boolean}を返却する
-//            必要があります(非対応の場合は undefined).
-const start = function(filterFunc, originMime) {
-    // 環境変数を取得.
-    const env = analysisEnv();
-
-    ////////////////////////////////////////
-    // 環境変数を取得して、それぞれを初期化する.
-    ////////////////////////////////////////
-
-    // s3reqreg.
-    const s3reqreg = _local_require("s3reqreg");
-    // s3接続定義が存在する場合.
-    if(env.s3Connect != undefined) {
-        // 基本設定.
-        s3reqreg.setOption({
-            currentPath: env.s3Connect.requirePath,
-            region: env.s3Connect.region,
-            timeout: env.timeout,
-            nonCache: env.noneCache
-        });
-    }
-
-    // greqreg.
-    const greqreg = _local_require("greqreg");
-    // git接続定義が存在する場合.
-    if(env.gitConnect != undefined) {
-        // 標準接続先のgithub repogitory設定.
-        greqreg.setDefault(
-            env.gitConnect.organization,
-            env.gitConnect.repo,
-            env.gitConnect.branch
-        );
-        // オプション設定.
-        greqreg.setOptions({
-            currentPath: env.gitConnect.requirePath,
-            timeout: env.timeout,
-            nonCache: env.noneCache
-        });
-        // 対象gitHubのprivateアクセス用トークンが存在する場合.
-        if(env.gitConnect.token != undefined) {
-            greqreg.setOrganizationToken(
-                env.gitConnect.organization,
-                env.gitConnect.token
-            )
-        }
-    }
-    // 取得した有効な環境変数をセット.
-    _env = env;
-
-    // filterFuncをセット.
-    _filterFunction = (typeof(filterFunc) != "function") ?
-        undefined : filterFunc;
-
-    // 拡張mimeFuncをセット.
-    _originMimeFunc = (typeof(originMime) != "function") ?
-        undefined : originMime;
-    
-    // requestFunction呼び出し処理のFunction登録
-    regRequestRequireFunc(env);
-
-    // main_handlerを返却.
-    return _main_handler;
-}
-
-// 有効な環境変数.
-var _env = undefined;
 
 // requestFunction呼び出し処理.
 // 環境変数に従って専用のfunction(jsFlag, path)の
@@ -314,22 +265,20 @@ var _requestFunction = undefined;
 // 外部環境上で利用するrequireに対して、利用する事で環境依存を
 // 防ぐことができます.
 const regRequestRequireFunc = function(env) {
-    let exrequire = null;
     if(env.mainExternal == _MAIN_S3_EXTERNAL) {
         // s3用のrequest処理.
         _requestFunction = function(jsFlag, path) {
             // javascript実行呼び出し.
             if(jsFlag) {
                 // キャッシュしないs3require実行.
-                return s3require(path, env.requestPath, true);
+                return _g.s3require(path, env.requestPath, true);
             }
             // s3contentsを実行してコンテンツを取得.
-            return s3contents(path, env.requestPath);
+            return _g.s3contents(path, env.requestPath);
         };
-
         // s3用のrequire処理.
-        exrequire = function(path, noneCache, curerntPath) {
-            return s3require(path, curerntPath, noneCache);
+        _g.exrequire = function(path, noneCache, curerntPath) {
+            return _g.s3require(path, curerntPath, noneCache);
         }
     } else {
         // github用のrequest処理.
@@ -337,14 +286,14 @@ const regRequestRequireFunc = function(env) {
             // javascript実行呼び出し.
             if(jsFlag) {
                 // キャッシュしないgrequire実行.
-                return grequire(path,
+                return _g.grequire(path,
                     env.gitConnect.organization,
                     env.gitConnect.repo,
                     env.gitConnect.branch,
                     env.requestPath, true);
             }
             // gcontentsを実行してコンテンツを取得.
-            return gcontents(path,
+            return _g.gcontents(path,
                 env.gitConnect.organization,
                 env.gitConnect.repo,
                 env.gitConnect.branch,
@@ -352,15 +301,19 @@ const regRequestRequireFunc = function(env) {
         };
 
         // github用のrequire処理.
-        exrequire = function(
+        _g.exrequire = function(
             path, noneCache, currentPath) {
-            return grequire(path, undefined, undefined, undefined,
-                currentPath, noneCache);
+            return _g.grequire(path,
+                env.gitConnect.organization,
+                env.gitConnect.repo,
+                env.gitConnect.branch,
+                currentPath, noneCache
+            );
         }
     }
-    // exrequireをglobal設定に対して書き込み不可設定を行う.
-    Object.defineProperty(_g, "exrequire",
-        {writable: false, value: exrequire});
+    
+    // ENVをglobalに設定.
+    _g.env = env;
 }
 
 // filterFunction呼び出し処理.
@@ -586,9 +539,11 @@ const resultOut = function(resState, resHeader, resBody) {
 // [Main]ハンドラー実行.
 // lambda-func-url に対する実行処理(HTTP or HTTPS)が行われるので、
 // ここでハンドラー実行処理を行う必要がある.
-// event aws lambdaの index.jsでの exports.handler(event)の
-//       条件が設定されます.
-const _main_handler = async function(event) {
+// event aws lambda `index.js` のmainメソッド
+//       exports.handler(event, _)の条件が設定されます.
+// context aws lambda `index.js` のmainメソッド
+//         exports.handler(_, context)の条件が設定されます.
+const _main_handler = async function(event, context) {
 
     // レスポンスステータス.
     const resState = httpStatus.create();
@@ -614,8 +569,6 @@ const _main_handler = async function(event) {
             ,mimeType: getMimeType
             // 元のeventをセット.
             ,srcEvent: event
-            // 有効な環境変数.
-            ,env: _env
         };
 
         // bodyが空の場合.
@@ -673,7 +626,7 @@ const _main_handler = async function(event) {
 
                 // 圧縮対象の場合.
                 // または環境変数で、圧縮なし指定でない場合.
-                if(resMimeType.gz == true && _env.noneGzip == false) {
+                if(resMimeType.gz == true && _g.ENV.noneGzip == false) {
                     // 圧縮処理を行う.
                     resBody = await mime.compressToContents(
                         params.requestHeader, resHeader, resBody);
@@ -760,7 +713,74 @@ const _main_handler = async function(event) {
             resHeader.toHeaders(),
             resBody);
     }    
-};
+}
+
+// lambda-func-url初期処理.
+// filterFunc コンテンツ実行の前処理を行う場合は設定します.
+// originMime 拡張MimeTypeを設定します.
+//            function(extends)が必要で、拡張子の結果に対して
+//            戻り値が {type: mimeType, gz: boolean}を返却する
+//            必要があります(非対応の場合は undefined).
+const start = function(filterFunc, originMime) {
+    // 環境変数を取得.
+    const env = analysisEnv();
+
+    ////////////////////////////////////////
+    // 環境変数を取得して、それぞれを初期化する.
+    ////////////////////////////////////////
+
+    // s3reqreg.
+    const s3reqreg = _local_require("s3reqreg");
+    // s3接続定義が存在する場合.
+    if(env.s3Connect != undefined) {
+        // 基本設定.
+        s3reqreg.setOption({
+            currentPath: env.s3Connect.requirePath,
+            region: env.s3Connect.region,
+            timeout: env.timeout,
+            nonCache: env.noneCache
+        });
+    }
+
+    // greqreg.
+    const greqreg = _local_require("greqreg");
+    // git接続定義が存在する場合.
+    if(env.gitConnect != undefined) {
+        // 標準接続先のgithub repogitory設定.
+        greqreg.setDefault(
+            env.gitConnect.organization,
+            env.gitConnect.repo,
+            env.gitConnect.branch
+        );
+        // オプション設定.
+        greqreg.setOptions({
+            currentPath: env.gitConnect.requirePath,
+            timeout: env.timeout,
+            nonCache: env.noneCache
+        });
+        // 対象gitHubのprivateアクセス用トークンが存在する場合.
+        if(env.gitConnect.token != undefined) {
+            greqreg.setOrganizationToken(
+                env.gitConnect.organization,
+                env.gitConnect.token
+            )
+        }
+    }
+
+    // filterFuncをセット.
+    _filterFunction = (typeof(filterFunc) != "function") ?
+        undefined : filterFunc;
+
+    // 拡張mimeFuncをセット.
+    _originMimeFunc = (typeof(originMime) != "function") ?
+        undefined : originMime;
+    
+    // requestFunction呼び出し処理のFunction登録
+    regRequestRequireFunc(env);
+
+    // main_handlerを返却.
+    return _main_handler;
+}
 
 /////////////////////////////////////////////////////
 // 外部定義.

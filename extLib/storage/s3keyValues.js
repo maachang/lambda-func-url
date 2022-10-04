@@ -175,10 +175,10 @@ const create = function(bucket, prefix, options) {
                 prefix = prefix.trim();
             }
         }
-        // 条件セット.
+        // メンバー変数条件セット.
         bucketName = bucket;
         prefixName = prefix;
-        // s3接続設定を行う.
+        // メンバー変数s3接続設定を行う.
         s3Client = new AWS.S3({
             region: getRegion(options)
         });

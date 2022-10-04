@@ -88,6 +88,7 @@ const getGithubObject = function(url, token) {
                 // httpステータスエラーの場合(400以上).
                 if(res.statusCode >= 400) {
                     reject(new Error("httpState: " + res.statusCode +
+                        " url: " + url +
                         " messaeg: " + res.statusMessage));
                     return;
                 }
@@ -394,12 +395,10 @@ const gcontents = function(
 
 // 初期設定.
 const init = function() {
-    // grequireをglobalに登録、global設定に対して書き込み不可設定を行う.
-    Object.defineProperty(_g, "grequire",
-        {writable: false, value: grequire});
-    // gcontentsをglobalに登録、global設定に対して書き込み不可設定を行う.
-    Object.defineProperty(_g, "gcontents",
-        {writable: false, value: gcontents});
+    // grequireをglobalに登録.
+    _g.grequire = grequire;
+    // gcontentsをglobalに登録.
+    _g.gcontents = gcontents;
 }
 
 /////////////////////////////////////////////////////
