@@ -7,6 +7,9 @@
 // aws-sdk javascript V2.
 const AWS = require('aws-sdk');
 
+// 文字デコード.
+const _TEXT_DECODE = new TextDecoder();
+
 // S3Clientを取得.
 // region 対象のリージョンを設定します.
 // 戻り値: S3Clientが発行されたPromiseが返却されます.
@@ -114,7 +117,7 @@ const _s3OriginClientObject = function(s3cl) {
     ret.getString = function(bucket, prefix, key) {
         return ret.getObject(bucket, prefix, key)
         .then((data) => {
-            return (new TextDecoder).decode(data.Body)
+            return _TEXT_DECODE.decode(data.Body)
         });
     }
 

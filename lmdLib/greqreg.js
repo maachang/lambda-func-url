@@ -38,6 +38,9 @@ const _checkConnectGithub = function(organization, repo, branch) {
     }
 }
 
+// GithubコンテンツURL.
+const _GITHUB_CONTENT_URL = "https://raw.githubusercontent.com/";
+
 // githubリポジトリ内のオブジェクトを取得するためのURLを生成.
 // https://raw.githubusercontent.com/{organization}/{repo}/{branch}/{path}
 // organization githubのorganization を設定します.
@@ -60,7 +63,7 @@ const getGithubObjectToURL = function(organization, repo, branch, currentPath, p
     if(!useString(path)) {
         throw new Error("path does not exist");
     }
-    return "https://raw.githubusercontent.com/" +
+    return _GITHUB_CONTENT_URL +
         organization + "/" + repo + "/" + branch + "/" + path;
 }
 
@@ -256,6 +259,9 @@ const ORIGIN_REQUIRE_SCRIPT_HEADER =
 const ORIGIN_REQUIRE_SCRIPT_FOODER =
     "\n};\n})();";
 
+// 文字デコード.
+const _TEXT_DECODE = new TextDecoder();
+
 // originRequireを実施.
 // name load対象のNameを設定します.
 // js load対象のjsソース・ファイルを設定します.
@@ -263,7 +269,7 @@ const ORIGIN_REQUIRE_SCRIPT_FOODER =
 const originRequire = function(name, js) {
     // origin的なrequireスクリプトを生成.
     let srcScript = ORIGIN_REQUIRE_SCRIPT_HEADER
-        + js
+        + _TEXT_DECODE.decode(js)
         + ORIGIN_REQUIRE_SCRIPT_FOODER;
     
     try {

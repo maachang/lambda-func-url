@@ -269,14 +269,15 @@ const regRequestRequireFunc = function(env) {
         // s3用のrequest処理.
         _requestFunction = function(jsFlag, path) {
             // javascript実行呼び出し.
-            if(jsFlag) {
+            if(jsFlag == true) {
                 // キャッシュしないs3require実行.
                 return _g.s3require(path, env.requestPath, true);
             }
             // s3contentsを実行してコンテンツを取得.
             return _g.s3contents(path, env.requestPath);
         };
-        // s3用のrequire処理.
+
+        // s3内で利用するrequire処理.
         _g.exrequire = function(path, noneCache, curerntPath) {
             return _g.s3require(path, curerntPath, noneCache);
         }
@@ -284,7 +285,7 @@ const regRequestRequireFunc = function(env) {
         // github用のrequest処理.
         _requestFunction = function(jsFlag, path) {
             // javascript実行呼び出し.
-            if(jsFlag) {
+            if(jsFlag == true) {
                 // キャッシュしないgrequire実行.
                 return _g.grequire(path,
                     env.gitConnect.organization,
@@ -300,7 +301,7 @@ const regRequestRequireFunc = function(env) {
                 env.requestPath);
         };
 
-        // github用のrequire処理.
+        // github内で利用するrequire処理
         _g.exrequire = function(
             path, noneCache, currentPath) {
             return _g.grequire(path,
@@ -311,9 +312,6 @@ const regRequestRequireFunc = function(env) {
             );
         }
     }
-    
-    // ENVをglobalに設定.
-    _g.env = env;
 }
 
 // filterFunction呼び出し処理.
@@ -393,56 +391,16 @@ const getPathToExtends = function(path) {
     return obj.substring(p + 1).trim().toLowerCase();
 }
 
-// 文字エンコード.
-const _TEXT_ENCODE = new TextEncoder();
-
-// 文字列をバイナリに変換.
-// s 文字列を設定します.
-// 戻り値: バイナリが返却されます.
-const stringToBinary = function(s) {
-    return _TEXT_ENCODE.encode(s);
-}
-
-// HTTPヘッダに対してBody条件を設定します.
-// header 対象のHTTPヘッダを設定します.
-//        bodyの型に対してcontent-typeを以下のようにセット.
-//         string: HTML形式で返却.
-//         object: json形式で返却.
-//        これ以外は 強制的に文字列変換して text形式で返却.
-//        ただし、content-typeとcontent-lengthが既に設定済みの
-//        場合はセットしない.
-// body 対象のBodyを設定します.
-// 戻り値: 変換されたBody情報が返却されます.
-const setHeaderToBody = function(header, body) {
-    // 既にコンテンツタイプとコンテンツ長が設定いる場合は
-    // 設定しないようにする.
-    if(header.get("content-type") == undefined ||
-        header.get("content-length") == undefined) {
-        const t = typeof(body);
-        // 返却結果が文字列の場合.
-        if(t == "string") {
-            body = stringToBinary(body);
-            // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-            header.put("content-type", getMimeType("html").type);
-            // レスポンス返却のBody長をセット.
-            header.put("content-length", body.length);
-        // 返却結果がobject型の場合.
-        } else if(t == "object") {
-            body = stringToBinary(JSON.stringify(body));
-            // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-            header.put("content-type", mime.JSON);
-            // レスポンス返却のBody長をセット.
-            header.put("content-length", body.length);
-        // その他の場合、文字列変換.
-        } else {
-            body = stringToBinary("" + body);
-            // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-            header.put("content-type", getMimeType("text").type);
-            // レスポンス返却のBody長をセット.
-            header.put("content-length", body.length);
-        }
+// パス情報の変換処理.
+// 例えば xxx/ でパスが終わってる場合は
+// xxx/index として変換処理を行います.
+// path 対象のパスを設定します.
+// 戻り値: ディレクトリ指定の場合は index と言う名前を追加します.
+const convertHttpPath = function(path) {
+    if((path = path.trim()).endsWith("/")) {
+        return path += "index";
     }
-    return body;
+    return path;
 }
 
 // HTTP-NoCacheヘッダをセット.
@@ -463,72 +421,96 @@ const setNoneCacheHeader = function(headerObject) {
     return headerObject;
 }
 
-// パス情報の変換処理.
-// 例えば xxx/ でパスが終わってる場合は
-// xxx/index として変換処理を行います.
-// path 対象のパスを設定します.
-// 戻り値: ディレクトリ指定の場合は index と言う名前を追加します.
-const convertHttpPath = function(path) {
-    if((path = path.trim()).endsWith("/")) {
-        return path += "index";
-    }
-    return path;
-}
-
 // レスポンス返却用情報を作成.
 // status レスポンスステータスコードを設定します.
 // headerObject レスポンスヘッダ(Object型)を設定します.
 // body レスポンスBodyを設定します.
+// noBody bodyチェックが不要な場合は true.
 // 戻り値: objectが返却されます.
-const returnResponse = function(status, headerObject, body) {
+const returnResponse = function(status, headerObject, body, noBody) {
+    let isBase64Encoded = false;
+    // bodyチェックが不要な場合は true.
+    if(noBody != true) {
+        // レスポンスBodyが存在する場合セット.
+        if(body != undefined && body != null) {
+            // 文字列返却.
+            if(typeof(body) == "string") {
+                // コンテンツタイプが設定されていない場合.
+                if(headerObject["content-type"] == undefined) {
+                    headerObject["content-type"] = getMimeType("text").type;
+                }
+            // バイナリ返却(Buffer).
+            } else if(body instanceof Buffer) {
+                body = body.toString("base64");
+                isBase64Encoded = true;
+                // コンテンツタイプが設定されていない場合.
+                if(headerObject["content-type"] == undefined) {
+                    headerObject["content-type"] = mime.OCTET_STREAM;
+                }
+            // バイナリ返却(typedArray or ArrayBuffer).
+            } else if(ArrayBuffer.isView(body) || body instanceof ArrayBuffer) {
+                body = Buffer.from(body).toString('base64')
+                isBase64Encoded = true;
+                // コンテンツタイプが設定されていない場合.
+                if(headerObject["content-type"] == undefined) {
+                    headerObject["content-type"] = mime.OCTET_STREAM;
+                }
+            // json返却.
+            } else if(body instanceof Object) {
+                body = JSON.stringify(body);
+                // コンテンツタイプが設定されていない場合.
+                if(headerObject["content-type"] == undefined) {
+                    headerObject["content-type"] = mime.JSON;
+                }
+            }
+        } else {
+            body = "";
+        }
+    }
+    // bodyが存在しない場合.
+    if(body == undefined || body == null) {
+        body = "";
+    }
     // Lambdaの関数URL戻り値を設定.
-    const ret = {
+    return {
         statusCode: status|0
         ,statusMessage: httpStatus.toMessage(status|0)
         ,headers: setNoneCacheHeader(headerObject)
-        ,isBase64Encoded: false
+        ,isBase64Encoded: isBase64Encoded
+        ,body: body
     };
-    // レスポンスBodyが存在する場合セット.
-    if(body != undefined && body != null) {
-        ret["body"] = body;
-    }
-    return ret;
 }
 
-// 実行結果の戻り値を出力.
+// [js実行]実行結果の戻り値を出力.
 // resState 対象のhttpStatus.jsオブジェクトを設定します.
 // resHeader 対象のhttpHeader.jsオブジェクトを設定します.
 // resBody 対象のBody情報を設定します.
 // 戻り値: returnResponse条件が返却されます
-const resultOut = function(resState, resHeader, resBody) {
+const resultJsOut = function(resState, resHeader, resBody) {
     // 実行結果リダイレクト条件が設定されている場合.
     if(resState.isRedirect()) {
         // 新しいレスポンスヘッダを作成.
         resHeader = httpHeader.create();
         // リダイレクト条件をヘッダにセットしてリダイレクト.
         resHeader.put("location", resState.getRedirectURL());
-        resHeader.put("content-length", 0);
-        // レスポンス返却.
+        // bodyなしのレスポンス返却.
         return returnResponse(
             resState.getStatus(),
-            resHeader.toHeaders());
+            resHeader.toHeaders(),
+            null, true);
     // レスポンスBodyが存在しない場合.
     } else if(resBody == undefined || resBody == null) {
-        // mimeType=textでレスポンス0で返却.
-        resHeader.put("content-type", getMimeType("text").type);
-        resHeader.put("content-length", 0);
-        // レスポンス返却.
+        // 0文字でレスポンス返却.
         return returnResponse(
             resState.getStatus(),
             resHeader.toHeaders());
     }
-    // 処理結果が存在する場合.
-    // ヘッダに対してBody条件をセット.
-    // 戻り値に対して、以下のcontent-typeをセット.
-    //  string: HTML形式で返却.
-    //  object: json形式で返却.
-    // これ以外は 強制的に文字列変換して text形式で返却.
-    resBody = setHeaderToBody(resHeader, resBody);
+    // contet-typeが設定されてなくて、返却結果が文字列の場合.
+    if(resHeader.get("content-type") == undefined && typeof(body) == "string") {
+        // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
+        resHeader.put("content-type", getMimeType("html").type);
+    }
+
     // レスポンス返却.
     return returnResponse(
         resState.getStatus(),
@@ -609,7 +591,7 @@ const _main_handler = async function(event, context) {
                 resBody != undefined && resBody != null) {
 
                 // レスポンス出力.
-                return resultOut(resState, resHeader, resBody);
+                return resultJsOut(resState, resHeader, resBody);
             }
         }
 
@@ -626,7 +608,7 @@ const _main_handler = async function(event, context) {
 
                 // 圧縮対象の場合.
                 // または環境変数で、圧縮なし指定でない場合.
-                if(resMimeType.gz == true && _g.ENV.noneGzip == false) {
+                if(resMimeType.gz == true && _g.ENV.noneGzip != true) {
                     // 圧縮処理を行う.
                     resBody = await mime.compressToContents(
                         params.requestHeader, resHeader, resBody);
@@ -634,8 +616,6 @@ const _main_handler = async function(event, context) {
 
                 // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
                 resHeader.put("content-type", resMimeType.type);
-                // レスポンス返却のBody長をセット.
-                resHeader.put("content-length", resBody.length);
                 // レスポンス返却.
                 return returnResponse(
                     200,
@@ -643,15 +623,17 @@ const _main_handler = async function(event, context) {
                     resBody);
             // エラーが発生した場合.
             } catch(e) {
+                // エラー出力.
+                console.error("## error(404): " + e);
+                console.error(e);
+
                 // 404エラー返却.
-                const resBody = stringToBinary(
-                    "[error]404 " + httpStatus.toMessage(404));
+                const resBody =
+                    "[error] 404 " + httpStatus.toMessage(404);
                 // 新しいレスポンスヘッダを作成.
                 resHeader = httpHeader.create();
                 // テキストのレスポンスMimeTypeをセット.
                 resHeader.put("content-type", getMimeType("text").type);
-                // レスポンス返却のBody長をセット.
-                resHeader.put("content-length", resBody.length);
                 // ファイルが存在しない(404).
                 return returnResponse(
                     404,
@@ -665,7 +647,7 @@ const _main_handler = async function(event, context) {
         ////////////////////////////
         {
             // 対象Javascriptを取得.
-            const func = await _requestFunction(true, params.path + ".js");
+            let func = await _requestFunction(true, params.path + ".js");
             // 実行メソッド(handler)を取得.
             if(typeof(func["handler"]) == "function") {
                 func = func["handler"];
@@ -683,7 +665,7 @@ const _main_handler = async function(event, context) {
             let resBody = await func(resState, resHeader, params);
 
             // レスポンス出力.
-            return resultOut(resState, resHeader, resBody);
+            return resultJsOut(resState, resHeader, resBody);
         }
 
     } catch(err) {
@@ -697,16 +679,15 @@ const _main_handler = async function(event, context) {
 
         // エラーログ出力.
         console.error("### [LFU] error: " + err);
+        console.error(err);
 
         // エラーの場合.
-        const resBody = stringToBinary(
-            "error 500: " + httpStatus.toMessage(500));
+        const resBody =
+            "error 500: " + httpStatus.toMessage(500);
         // 新しいレスポンスヘッダを作成.
         resHeader = httpHeader.create();
         // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
         resHeader.put("content-type", getMimeType("text").type);
-        // レスポンス返却のBody長をセット.
-        resHeader.put("content-length", resBody.length);
         // レスポンス返却.
         return returnResponse(
             500,
@@ -777,6 +758,9 @@ const start = function(filterFunc, originMime) {
     
     // requestFunction呼び出し処理のFunction登録
     regRequestRequireFunc(env);
+
+     // ENVをglobalに設定.
+     _g.ENV = env;
 
     // main_handlerを返却.
     return _main_handler;

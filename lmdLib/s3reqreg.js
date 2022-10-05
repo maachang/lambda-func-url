@@ -235,6 +235,9 @@ const ORIGIN_REQUIRE_SCRIPT_HEADER =
 const ORIGIN_REQUIRE_SCRIPT_FOODER =
     "\n};\n})();";
 
+// 文字デコード.
+const _TEXT_DECODE = new TextDecoder();
+
 // originRequireを実施.
 // name load対象のs3Nameを設定します.
 // js load対象のjsソース・ファイルを設定します.
@@ -242,7 +245,7 @@ const ORIGIN_REQUIRE_SCRIPT_FOODER =
 const originRequire = function(name, js) {
     // origin的なrequireスクリプトを生成.
     let srcScript = ORIGIN_REQUIRE_SCRIPT_HEADER
-        + js
+        + _TEXT_DECODE.decode(js)
         + ORIGIN_REQUIRE_SCRIPT_FOODER;
     
     try {

@@ -20,6 +20,9 @@ const JSON = "application/json";
 // [mimeType]gz.
 const GZ = "application/gzip";
 
+// 圧縮対象バイナリ(文字列)長.
+const ZCOMP_LENGTH = 1024;
+
 // 最低限のMimeType(拡張子別).
 // 性質上あまり大きなコンテンツのMimeType対応は行わない.
 // 一方で、普通にWebアプリを扱う上での最低限のものは対応している.
@@ -75,8 +78,15 @@ const get = function(extention) {
 // body 圧縮対象のBodyを設定します.
 // 戻り値: promise(body)が返却されます.
 const compressToContents = function(reqHeader, resHeader, body) {
+    // 情報が存在しない、もしくは一定サイズ以下の場合.
+    if(body == null || body == undefined || body.length <= ZCOMP_LENGTH) {
+        // 未圧縮.
+        return new Promise((resolve) => {
+            resolve(body);
+        });
+    }
     // requestヘッダで、対応圧縮条件を取得.
-    let acceptEncoding = reqHeader["accept-encoding"];
+    let acceptEncoding = reqHeader.get("accept-encoding");
     // accept-encodingが存在する場合.
     if(acceptEncoding != undefined) {
         acceptEncoding = acceptEncoding.toLowerCase();
@@ -88,7 +98,7 @@ const compressToContents = function(reqHeader, resHeader, body) {
                         reject(err);
                         return;
                     }
-                    resHeader["content-encoding"] = "gzip";
+                    resHeader.put("content-encoding", "gzip");
                     resolve(result);
                 });
             });
@@ -100,12 +110,12 @@ const compressToContents = function(reqHeader, resHeader, body) {
                         reject(err);
                         return;
                     }
-                    resHeader["content-encoding"] = "deflate";
+                    resHeader.put("content-encoding", "deflate");
                     resolve(result);
                 });
             });
         }
-    }
+    } else 
     // 未圧縮.
     return new Promise((resolve) => {
         resolve(body);
