@@ -2,7 +2,7 @@
 // lambda main.
 // 対象のLambdaのindex.jsを置き換えてください.
 //////////////////////////////////////////////////////////
-(function(_g) {
+(function() {
 'use strict'
 
 // lambda main.

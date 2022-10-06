@@ -1,5 +1,8 @@
 //////////////////////////////////////////////////////////
 // lambda-func-url の環境設定用セットアップ.
+
+const { off } = require("process");
+
 //////////////////////////////////////////////////////////
 (function(_g) {
 'use strict'
@@ -518,6 +521,24 @@ const resultJsOut = function(resState, resHeader, resBody) {
         resBody);
 }
 
+// [Form]パラメータ解析.
+// n フォームパラメータを設定します.
+// 戻り値: フォームパラメータ解析結果が返却されます.
+var analysisFormParams = function(n) {
+    const list = n.split("&");
+    const len = list.length;
+    const ret = {};
+    for (var i = 0; i < len; i++) {
+        n = list[i].split("=");
+        if (n.length == 1) {
+            ret[n[0]] = "";
+        } else {
+            ret[n[0]] = decodeURIComponent(n[1]);
+        }
+    }
+    return ret;
+}
+
 // [Main]ハンドラー実行.
 // lambda-func-url に対する実行処理(HTTP or HTTPS)が行われるので、
 // ここでハンドラー実行処理を行う必要がある.
@@ -534,16 +555,18 @@ const _main_handler = async function(event, context) {
 
     try {
 
-        // AWSLambdaの関数URLパラメータから必要な内容を取得.
-        const params = {
+        // リクエスト情報.
+        const request = {
             // httpメソッド.
             method: event.requestContext.http.method.toUpperCase()
+            /// httpプロトコル(HTTP/1.1).
+            ,protocol: event.requestContext.http.protocol
             // EndPoint(string)パス.
             ,path: convertHttpPath(event.rawPath)
             // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
-            ,requestHeader: httpHeader.create(event.headers, event.cookies)
-            // リクエストパラメータ(Object).
-            ,requestParams: getQueryParams(event)
+            ,header: httpHeader.create(event.headers, event.cookies)
+            // urlパラメータ(Object).
+            ,queryParams: getQueryParams(event)
             // EndPoint(string)パスに対するファイルの拡張子.
             // undefinedの場合、js実行結果を返却させる.
             ,extension: getPathToExtends(event.rawPath)
@@ -553,23 +576,58 @@ const _main_handler = async function(event, context) {
             ,srcEvent: event
         };
 
-        // bodyが空の場合.
-        if(event.body == undefined || event.body == null) {
+        // bodyが空の場合(GET).
+        if(typeof(event.body) != "string") {
             // 空をセット.
-            params.body = undefined;
-            params.isBodyBinary = false;
-        
-        // bodyが存在する場合.
+            request.body = undefined;
+            request.isBinary = false;
+            // パラメータにurlパラメータをセット.
+            request.params = request.queryParams;
+        // bodyが存在する場合(POST).
         } else {
+            let body, isBinary;
             // Base64で設定されている場合.
             if(event.body.isBase64Encoded == true) {
                 // Base64からバイナリ変換してバイナリとしてセット.
-                params.body = Buffer.from(event.body, 'base64');
-                params.isBodyBinary = true;
+                body = Buffer.from(event.body, 'base64');
+                isBinary = true;
             } else {
                 // 文字列としてセット.
-                params.body = event.body;
-                params.isBodyBinary = false;
+                body = event.body;
+                isBinary = false;
+            }
+            // リクエストのコンテンツタイプを取得.
+            const contentType = request.header.get("content-type");
+            // フォーム形式の場合.
+            if(contentType == mime.FORM_DATA) {
+                if(isBinary) {
+                    body = body.toString();
+                }
+                // フォームパラメータ解析.
+                request.params = analysisFormParams(body);
+                request.body = undefined;
+                request.isBinary = false;
+            // JSON形式の場合.
+            } else if(contentType == mime.JSON) {
+                if(isBinary) {
+                    body = body.toString();
+                }
+                // JSON解析.
+                request.params = JSON.parse(body);
+                request.body = undefined;
+                request.isBinary = false;
+            // 文字設定の場合.
+            } else if(!isBinary) {
+                // フォームパラメータ解析.
+                request.params = analysisFormParams(body);
+                request.body = undefined;
+                request.isBinary = false;
+            // それ以外の場合.
+            } else {
+                // バイナリ型でセット.
+                request.params = {};
+                request.body = body;
+                request.isBinary = isBinary;
             }
         }
 
@@ -581,7 +639,7 @@ const _main_handler = async function(event, context) {
             //  object: json形式で返却.
             // これ以外は 強制的に文字列変換して text形式で返却.
             const srcResState = resState.getStatus();
-            let resBody = _filterFunction(resState, resHeader, params);
+            let resBody = _filterFunction(resState, resHeader, request);
 
             // HttpStatusが変更された場合.
             // リダイレクト設定が行われてる場合.
@@ -597,21 +655,21 @@ const _main_handler = async function(event, context) {
 
         // 呼び出し対象がコンテンツ実行(拡張子が存在)の場合.
         // 逆に言えばjs実行ではない場合.
-        if(params.extension != undefined) {
+        if(request.extension != undefined) {
             // 配置されているコンテンツのバイナリを返却する.
             try {
                 // 対象パスのコンテンツ情報を取得.
-                let resBody = await _requestFunction(false, params.path);
+                let resBody = await _requestFunction(false, request.path);
 
                 // mimeTypeを取得.
-                const resMimeType = getMimeType(params.extension);
+                const resMimeType = getMimeType(request.extension);
 
                 // 圧縮対象の場合.
                 // または環境変数で、圧縮なし指定でない場合.
                 if(resMimeType.gz == true && _g.ENV.noneGzip != true) {
                     // 圧縮処理を行う.
                     resBody = await mime.compressToContents(
-                        params.requestHeader, resHeader, resBody);
+                        request.header, resHeader, resBody);
                 }
 
                 // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
@@ -647,7 +705,7 @@ const _main_handler = async function(event, context) {
         ////////////////////////////
         {
             // 対象Javascriptを取得.
-            let func = await _requestFunction(true, params.path + ".js");
+            let func = await _requestFunction(true, request.path + ".js");
             // 実行メソッド(handler)を取得.
             if(typeof(func["handler"]) == "function") {
                 func = func["handler"];
@@ -658,11 +716,11 @@ const _main_handler = async function(event, context) {
             } else {
                 throw new Error(
                     "The execution method does not exist in the specified path: \"" +
-                    params.path + ".js\" condition.")
+                    request.path + ".js\" condition.")
             }
 
             // js実行.
-            let resBody = await func(resState, resHeader, params);
+            let resBody = await func(resState, resHeader, request);
 
             // レスポンス出力.
             return resultJsOut(resState, resHeader, resBody);
