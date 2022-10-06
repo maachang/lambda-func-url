@@ -541,7 +541,7 @@ const _main_handler = async function(event, context) {
             // EndPoint(string)パス.
             ,path: convertHttpPath(event.rawPath)
             // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
-            ,requestHeader: httpHeader.create(event.headers)
+            ,requestHeader: httpHeader.create(event.headers, event.cookies)
             // リクエストパラメータ(Object).
             ,requestParams: getQueryParams(event)
             // EndPoint(string)パスに対するファイルの拡張子.
