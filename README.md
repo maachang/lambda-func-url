@@ -1,6 +1,6 @@
 # [LFU]lambda-func-url
 
-## LFU作成経緯
+## LFUの作成動機
 
 AWSのLambdaにおいて昨今(2022年ちょっと)から `関数URL` と言うものがサポートされ、これにより `AWS-Gateway` + `Lambda` の定義を必要とせずに URLから当該Lambdaが呼び出せると言う仕組みが提供されている.
 
@@ -346,11 +346,11 @@ LFUでは、現状3つの requestコンテンツが利用できる.
 
 3. [dynamic] jhtmlテンプレートコンテンツ
 
-staticコンテンツ = 静的コンテンツは `html` や `javascript` や `css` や `jpeg` などのファイルコンテンツを指すもので、これの説明は割愛する.
+### 1. staticコンテンツ
+
+staticコンテンツ = 静的コンテンツは `html` や `javascript` や `css` や `jpeg` などのファイルコンテンツを指すもの.
 
 また補足として Lambdaの使用上 レスポンスの最大値は `6MByte` となっており、大きな情報の静的コンテンツの利用は別のサービスを利用する必要がある.
-
-ここでは項２と項３について説明する.
 
 ### 2. js実行コンテンツ
 
@@ -385,7 +385,7 @@ exports.handler = function(resStatus, resHeader, request) {
 
 実行結果
 
-~~~bash
+~~~js
 content-type: application/json
 
 {"hello": "urlPath: /test.js"}
@@ -412,7 +412,7 @@ content-type: application/json
 
 実行結果
 
-~~~bash
+~~~html
 content-type: text/html
 
 <html>
@@ -432,13 +432,13 @@ jhtmlテンプレートは、サーバー側で動的なHTMLを作成するた�
 
 テンプレートとして利用できるカスタムタグは以下の通り.
 
-- <% ... %><br>
+- `<% ... %>`<br>
    基本的な組み込みタグ情報
-- <%= ... %><br>
+- `<%= ... %>`<br>
    実行結果をhtmlとして出力する組み込みタグ.
-- <%# ... %><br>
+- `<%# ... %>`<br>
    コメント用の組み込みタグ.
-- ${ ... }<br>
+- `${ ... }`<br>
    実行結果をテンプレートとして出力する組み込みタグ.<br>
    内容は `<%= ... %>` と機能的に同じ.
    ただ利用推奨としては、変数出力時に利用する.
@@ -472,22 +472,20 @@ let list = [1, 2, 3, 4, 5];
 
 #### jhtml組み込み変数
 
-また、以下のような組込変数が存在する.
+jhtmlでは、以下のような組込変数が存在する.
 
-jhtml組み込み変数.
-
-- $out = function(string)<br>
+- `$out` = function(string)<br>
   stringをhtmlとして出力するFunction.<br>
-- $params = object<br>
+- `$params` = object<br>
   getまたはpostで渡されたパラメータ情報.<br>
   - getパラメータの場合 {key: value} のような形で格納される.<br>
   - postパラメータの場合 `application/x-www-form-urlencoded`の場合は {key: value} のような形で格納される.<br>
     また`application/json` の場合は、JSONで渡された内容が格納される.<br>
-- $request = object<br>
+- `$request` = object<br>
   リクエストオブジェクトが設定される.<br>
-- $status = httpStatus.js<br>
+- `$status` = httpStatus.js<br>
   レスポンス用のステータスが設定される.<br>
-- $response = httpHeader.js<br>
+- `$response` = httpHeader.js<br>
   レスポンス用のHTTPヘッダが設定される.<br>
 
 このように、Webアプリを作成する上で最低限の機能を `LFU` は提供する.
