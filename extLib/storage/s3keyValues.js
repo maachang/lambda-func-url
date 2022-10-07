@@ -23,7 +23,7 @@
 // aws-sdk javascript V2.
 const AWS = require('aws-sdk');
 
-// インデックスであるKey=base64(value)の条件を取得.
+// インデックスである `=Key=base64(value)` の条件を取得.
 const getIndexKeyValueName = function(key, value) {
     // valueが空でない場合.
     if(value != null && value != undefined) {
@@ -128,7 +128,6 @@ const create = function(bucket, prefix, options) {
         if(typeof(bucket) != "string") {
             throw new Error("S3 bucket name is not set.");
         }
-
         // bucket名の整形.
         let flg = false;
         bucket = bucket.trim();
@@ -199,8 +198,8 @@ const create = function(bucket, prefix, options) {
             params.Body = jsonb.encode(value);
             return s3Client.putObject(params).promise()
             .catch((e) => {
-                console.error("## [ERROR] _putValue bucket: " +
-                    params.Bucket + " key: " + params.Key);
+                console.error("## [ERROR] put bucket: " +
+                    JSON.stringify(params, null, "  "));
                 throw e;
             });    
         })
@@ -211,11 +210,14 @@ const create = function(bucket, prefix, options) {
     // keys インデックスキー {key: value ... } を設定します.
     // 戻り値: 検索結果(json)が返却されます.
     ret.get = function(tableName, keys) {
-        return s3Client.putObject(
-            getS3Params(
-                bucketName, prefixName, tableName, keys))
+        const params = getS3Params(
+            bucketName, prefixName, tableName, keys);
+        return s3Client.getObject(params)
         .promise()
         .catch(() => {
+            // エラー出力.
+            console.error("## [ERROR] get bucket: " +
+                JSON.stringify(params, null, "  "));
             return null; 
         })
         .then((value) => {
@@ -231,11 +233,13 @@ const create = function(bucket, prefix, options) {
     // keys インデックスキー {key: value ... } を設定します.
     // 戻り値: 削除に成功した場合 trueが返却されます.
     ret.delete = function(tableName, keys) {
-        return s3Client.deleteObject(
-            getS3Params(
-                bucketName, prefixName, tableName, keys))
+        const params = getS3Params(
+            bucketName, prefixName, tableName, keys);
+        return s3Client.deleteObject(params)
         .promise()
         .catch(() => {
+            console.error("## [ERROR] remove bucket: " +
+                JSON.stringify(params, null, "  "));
             return false;
         })
         .then(() => {
