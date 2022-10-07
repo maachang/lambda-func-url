@@ -43,43 +43,37 @@
 //   レスポンス用のステータスが設定される.
 // $response = httpHeader.js
 //   レスポンス用のHTTPヘッダが設定される.
-//   
+//
+
+// nodejs library(vm).
+const vm = require('vm');
 
 // jhtml出力メソッド名.
 const _OUT = "$out";
 
 // クォーテーションに対するインデントの増減を行う.
 // string 対象の文字列を設定します.
-// indent 追加するインデント数を設定します.
 // dc [true]の場合は["], [false]の場合は['].
 // 戻り値: 変換された内容が返却されます.
-const indentQuote = function(string, indent, dc) {
+const indentQuote = function(string, dc) {
     const len = string.length;
     if (len <= 0) {
         return string;
     }
-    const quote = (dc) ? '\"' : '\'';
+    const target = (dc) ? '\"' : '\'';
     let c, j, yenLen, buf;
     yenLen = 0;
     buf = "";
     for (let i = 0; i < len; i++) {
-        if ((c = string[i]) == quote) {
+        if ((c = string[i]) == target) {
             if (yenLen > 0) {
-                if (indent == -1) {
-                    yenLen >>= 1;
-                } else {
-                    yenLen <<= 1;
-                }
+                yenLen <<= 1;
                 for (j = 0; j < yenLen; j++) {
                     buf += "\\";
                 }
                 yenLen = 0;
             }
-            if (indent == -1) {
-                buf += quote;
-            } else {
-                buf += "\\" + quote;
-            }
+            buf += "\\" + target;
         } else if ('\\' == c) {
             yenLen ++;
         } else {
@@ -98,6 +92,26 @@ const indentQuote = function(string, indent, dc) {
         }
     }
     return buf;
+}
+
+// 改行に対するインデントの増減を行う.
+// string 対象の文字列を設定します.
+// 戻り値: 変換された内容が返却されます.
+const indentEnter = function(s) {
+    const len = s.length;
+    if (len <= 0) {
+        return s;
+    }
+    let c, ret;
+    ret = "";
+    for(let i = 0; i < len; i++) {
+        if((c = s[i]) == "\n") {
+            ret += "\\n";
+        } else {
+            ret += c;
+        }
+    }
+    return ret;
 }
 
 // ${ ... } を <% ... %>変換する.
@@ -166,11 +180,11 @@ const analysisJHtml = function(jhtml) {
                 if(ret.length != 0) {
                     ret += "\n";
                 }
+                n = jhtml.substring(bef, start);
+                n = indentEnter(n);
+                n = indentQuote(n, true);
                 // HTML部分を出力.
-                ret += _OUT + "(\"";
-                ret += indentQuote(
-                    jhtml.substring(bef, start), 1, true);
-                ret += "\");\n";
+                ret += _OUT + "(\"" + n + "\");\n";
                 bef = i + 2;
                 
                 // 実行処理部分を実装.
@@ -196,11 +210,27 @@ const analysisJHtml = function(jhtml) {
         }
     }
     // のこりのHTML部分を出力.
-    ret += _OUT + "(\"";
-    ret += indentQuote(
-        jhtml.substring(bef), 1, true);
-    ret += "\");\n";
+    n = jhtml.substring(bef);
+    n = indentEnter(n);
+    n = indentQuote(n, true);
+    // HTML部分を出力.
+    ret += _OUT + "(\"" + n + "\");\n";
 
+    return ret;
+}
+
+// ￥r￥nを ￥nに変換.
+// s 対象の文字列を設定します.
+// 戻り値: 変換された内容が返却されます.
+const convertYrYnToYn = function(s) {
+    let c, ret;
+    const len = s.length;
+    ret = "";
+    for(let i = 0; i < len; i ++) {
+        if((c = s[i]) != "\r") {
+            ret += c;
+        }
+    }
     return ret;
 }
 
@@ -209,7 +239,9 @@ const analysisJHtml = function(jhtml) {
 // 戻り値: 実行可能なjs形式の情報が返却されます.
 const convertJhtmlToJs = function(jhtml) {
     return analysisJHtml(
-        analysis$braces(jhtml)
+        analysis$braces(
+            convertYrYnToYn(jhtml)
+        )
     );
 }
 

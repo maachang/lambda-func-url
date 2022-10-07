@@ -1,8 +1,5 @@
 //////////////////////////////////////////////////////////
 // lambda-func-url の環境設定用セットアップ.
-
-const { off } = require("process");
-
 //////////////////////////////////////////////////////////
 (function(_g) {
 'use strict'
@@ -631,7 +628,9 @@ const _main_handler = async function(event, context) {
             }
         }
 
+        //////////////////////////////////////////
         // filterFunctionが設定されてる場合呼び出す.
+        //////////////////////////////////////////
         if(_filterFunction != undefined) {
             // filterFunctionを実行.
             // 返却値がある場合は、この処理で終わらせる.
@@ -639,7 +638,7 @@ const _main_handler = async function(event, context) {
             //  object: json形式で返却.
             // これ以外は 強制的に文字列変換して text形式で返却.
             const srcResState = resState.getStatus();
-            let resBody = _filterFunction(resState, resHeader, request);
+            const resBody = _filterFunction(resState, resHeader, request);
 
             // HttpStatusが変更された場合.
             // リダイレクト設定が行われてる場合.
@@ -653,16 +652,59 @@ const _main_handler = async function(event, context) {
             }
         }
 
+        /////////////////////////////////////////////////
         // 呼び出し対象がコンテンツ実行(拡張子が存在)の場合.
         // 逆に言えばjs実行ではない場合.
+        /////////////////////////////////////////////////
         if(request.extension != undefined) {
             // 配置されているコンテンツのバイナリを返却する.
             try {
+                let resBody = undefined;
+                ///////////////////////////////
+                // jhtmlのテンプレート実行を行う.
+                ///////////////////////////////
+                if(request.extension == "jhtml") {
+                    // jhtmlの実際のコンテンツ名を作成.
+                    // .jhtml => .js.html
+                    const name = request.path.substring(
+                        0, request.path.length - 6) + ".js.html";
+                    
+                    // jhtml内容を取得.
+                    resBody = await _requestFunction(false, name);
+                    // 取得内容(binary)を文字変換.
+                    resBody = Buffer.from(resBody).toString();
+
+                    // jhtmlライブラリを取得.
+                    const jhtml = require("./jhtml.js");
+                    
+                    // jhtmlをjs変換.
+                    resBody = jhtml.convertJhtmlToJs(resBody);
+                    // jhtmlを実行.
+                    resBody = jhtml.executeJhtml(name, resBody, request, resState, resHeader);
+
+                    // 環境変数で、圧縮なし指定でない場合.
+                    if(_g.ENV.noneGzip != true) {
+                        // 圧縮処理を行う.
+                        resBody = await mime.compressToContents(
+                            request.header, resHeader, resBody);
+                    }
+
+                    // レスポンス出力.
+                    return resultJsOut(resState, resHeader, resBody);
+
+                }
+                //////////////////////////
+                // コンテンツファイルを取得.
+                //////////////////////////
+
                 // 対象パスのコンテンツ情報を取得.
-                let resBody = await _requestFunction(false, request.path);
+                resBody = await _requestFunction(false, request.path);
 
                 // mimeTypeを取得.
                 const resMimeType = getMimeType(request.extension);
+
+                // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
+                resHeader.put("content-type", resMimeType.type);
 
                 // 圧縮対象の場合.
                 // または環境変数で、圧縮なし指定でない場合.
@@ -672,29 +714,28 @@ const _main_handler = async function(event, context) {
                         request.header, resHeader, resBody);
                 }
 
-                // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-                resHeader.put("content-type", resMimeType.type);
                 // レスポンス返却.
                 return returnResponse(
                     200,
                     resHeader.toHeaders(),
                     resBody);
+
             // エラーが発生した場合.
             } catch(e) {
                 // エラー出力.
-                console.error("## error(404): " + e);
+                console.error("## error(500): " + e);
                 console.error(e);
 
-                // 404エラー返却.
+                // 500エラー返却.
                 const resBody =
-                    "[error] 404 " + httpStatus.toMessage(404);
+                    "error 500: " + httpStatus.toMessage(500);
                 // 新しいレスポンスヘッダを作成.
                 resHeader = httpHeader.create();
                 // テキストのレスポンスMimeTypeをセット.
                 resHeader.put("content-type", getMimeType("text").type);
-                // ファイルが存在しない(404).
+                // ファイルが存在しない(500).
                 return returnResponse(
-                    404,
+                    500,
                     resHeader.toHeaders(),
                     resBody);
             }
@@ -736,7 +777,7 @@ const _main_handler = async function(event, context) {
         //     3. 取得したJavascriptにエラーがある 500.
 
         // エラーログ出力.
-        console.error("### [LFU] error: " + err);
+        console.error("## error(500): " + err);
         console.error(err);
 
         // エラーの場合.
