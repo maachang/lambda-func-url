@@ -299,7 +299,7 @@ externalのリソース定義は、先程の `環境変数` でリソース利�
 ### extLib/storage/jsonb.js
 
 ~~~js
-const convb = await exrequire("storage/convb.js);
+const convb = await exrequire("storage/convb.js");
 ~~~
 
 とすることで `カレントパス` 以降の条件指定で `require` に対してソースコードの環境依存が無くす事ができる.
@@ -383,7 +383,7 @@ exports.handler = function(resStatus, resHeader, request) {
 })();
 ~~~
 
-#### 実行結果
+実行結果
 
 ~~~bash
 content-type: application/json
@@ -410,7 +410,7 @@ content-type: application/json
 </html>
 ~~~
 
-#### 実行結果
+実行結果
 
 ~~~bash
 content-type: text/html
@@ -463,5 +463,23 @@ let list = [1, 2, 3, 4, 5];
   4<br>
   5<br>
 ~~~
+
+また、以下のような組込変数が存在する.
+
+jhtml組み込み変数.
+
+- $out = function(string)<br>
+  stringをhtmlとして出力するFunction.<br>
+- $params = object<br>
+  getまたはpostで渡されたパラメータ情報.<br>
+  - getパラメータの場合 {key: value} のような形で格納される.<br>
+  - postパラメータの場合 `application/x-www-form-urlencoded`の場合は {key: value} のような形で格納される.<br>
+    また`application/json` の場合は、JSONで渡された内容が格納される.<br>
+- $request = object<br>
+  リクエストオブジェクトが設定される.<br>
+- $status = httpStatus.js<br>
+  レスポンス用のステータスが設定される.<br>
+- $response = httpHeader.js<br>
+  レスポンス用のHTTPヘッダが設定される.<br>
 
 このように、Webアプリを作成する上で最低限の機能を `LFU` は提供する.
