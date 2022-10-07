@@ -632,23 +632,22 @@ const _main_handler = async function(event, context) {
         // filterFunctionが設定されてる場合呼び出す.
         //////////////////////////////////////////
         if(_filterFunction != undefined) {
-            // filterFunctionを実行.
-            // 返却値がある場合は、この処理で終わらせる.
-            //  string: HTML形式で返却.
-            //  object: json形式で返却.
-            // これ以外は 強制的に文字列変換して text形式で返却.
-            const srcResState = resState.getStatus();
-            const resBody = _filterFunction(resState, resHeader, request);
+            // filterFunc.
+            // function(out, resState, resHeader, request);
+            //  out [0]にレスポンスBodyが設定されます.
+            //  resState: レスポンスステータス(httpStatus.js).
+            //  resHeader レスポンスヘッダ(httpHeader.js)
+            //  request Httpリクエスト情報.
+            //  戻り値: true / false.
+            //         trueの場合filter処理で処理終了となります.
+            const outResBody = [undefined];
+            const result = await _filterFunction(
+                outResBody, resState, resHeader, request);
 
-            // HttpStatusが変更された場合.
-            // リダイレクト設定が行われてる場合.
-            // 実行に対する戻り値が存在する場合は、コンテンツ実行は行わない.
-            if(srcResState != resState.getStatus() ||
-                resState.isRedirect() ||
-                resBody != undefined && resBody != null) {
-
+            // 戻り値が trueの場合、フィルター実行で完了.
+            if(result == true) {
                 // レスポンス出力.
-                return resultJsOut(resState, resHeader, resBody);
+                return resultJsOut(resState, resHeader, outResBody[0]);
             }
         }
 
@@ -676,11 +675,12 @@ const _main_handler = async function(event, context) {
 
                     // jhtmlライブラリを取得.
                     const jhtml = require("./jhtml.js");
-                    
+
                     // jhtmlをjs変換.
                     resBody = jhtml.convertJhtmlToJs(resBody);
                     // jhtmlを実行.
-                    resBody = jhtml.executeJhtml(name, resBody, request, resState, resHeader);
+                    resBody = await jhtml.executeJhtml(
+                        name, resBody, request, resState, resHeader);
 
                     // 環境変数で、圧縮なし指定でない場合.
                     if(_g.ENV.noneGzip != true) {

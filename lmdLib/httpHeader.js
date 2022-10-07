@@ -59,6 +59,20 @@ const create = function(headers, cookies) {
         return ret;
     }
 
+    // コンテンツタイプを取得.
+    // 戻り値: コンテンツタイプ(mimeType)が返却されます.
+    ret.getContentType = function() {
+        return headList["content-type"];
+    }
+
+    // コンテンツタイプを設定.
+    // mime mimeTypeを設定します.
+    // 戻り値: このオブジェクトが返却されます.
+    ret.setContentType = function(mime) {
+        headList["content-type"] = mime;
+        return ret;
+    }
+
     // ヘッダ情報を削除.
     // key key名を設定します.
     ret.remove = function(key) {

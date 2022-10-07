@@ -266,7 +266,7 @@ const JHTML_JS_FOODER =
 // status 対象のステータスを設定します.
 // response 対象のレスポンスを設定します.
 // 戻り値: 実行結果(string)が返却されます.
-const executeJhtml = function(
+const executeJhtml = async function(
     name, js, request, status, response) {
     // jhtml実行JSのスクリプトを生成.
     let srcScript = JHTML_JS_HEADER
@@ -290,7 +290,7 @@ const executeJhtml = function(
             outString += string;
         }
         // スクリプトを実行して、exportsの条件を取得.
-        executeJs(out, request.params, request, status, response);
+        await executeJs(out, request.params, request, status, response);
 
         // コンテンツタイプが設定されていない場合.
         if(response.get("content-type") == undefined) {
