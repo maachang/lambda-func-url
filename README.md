@@ -139,16 +139,11 @@ const originMime = undefined;
 })();
 ~~~
 
-これをLambdaが自動生成した `index.js` を置き換えるだけで完了となる.
+これをLambdaが自動生成した `index.js` を含む、[lmdLib](https://github.com/maachang/lambda-func-url/tree/main/lmdLib)ディレクトリ配下のjsファイル全てをLambda側の `/` パスに全て配置して `再デプロイ` することで実行環境の構築は完了となる.
 
-また `require("./LFUSetup.js").start(arguments)` に対して、処理の拡張性を定義できる.
+また `require("./LFUSetup.js").start(evemt, filterFunc, originMime)` に対して、処理の拡張性を定義できる.
 
-`start(arguments)` のパラメータは以下の内容が設定可能.
-
-1. arguments[0]=event<br>
-  index.jsで渡される `event` を設定します.<br>
-
-2. arguments[1]=filterFunc<br>
+1. filterFunc<br>
   コンテンツ実行の事前処理を行いたい場合は設定する.<br>
   たとえば、何らかのアクセス認証を行いたい場合は、filterFuncを設定して行う.<br>
   function(out, resState, resHeader, request);<br>
@@ -159,7 +154,7 @@ const originMime = undefined;
    戻り値: true / false.<br>
           trueの場合filter処理で処理終了となります.<br>
 
-3. arguments[2]=originMime<br>
+2. originMime<br>
   拡張MimeTypeを設定.<br>
   function(extends)が必要で、拡張子の結果に対して戻り値が {type: mimeType, gz: boolean}を返却する必要がある(対応しない場合は undefinedで設定しない).
 
