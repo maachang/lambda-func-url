@@ -8,7 +8,7 @@
 // lambda main.
 exports.handler = async (event, context) => {
     return await (require("./LFUSetup.js").start(
-        filterFunc, originMime))
+        event, filterFunc, originMime))
         (event, context);
 };
 

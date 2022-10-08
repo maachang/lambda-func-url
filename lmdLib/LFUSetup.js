@@ -796,12 +796,24 @@ const _main_handler = async function(event, context) {
 }
 
 // lambda-func-url初期処理.
+// event index.jsで渡されるeventを設定します.
 // filterFunc コンテンツ実行の前処理を行う場合は設定します.
 // originMime 拡張MimeTypeを設定します.
 //            function(extends)が必要で、拡張子の結果に対して
 //            戻り値が {type: mimeType, gz: boolean}を返却する
 //            必要があります(非対応の場合は undefined).
-const start = function(filterFunc, originMime) {
+const start = function(event, filterFunc, originMime) {
+    // 応答確認.
+    if(event.rawPath == "/~ping") {
+        // ping用function返却.
+        return async function() {
+            return {
+                "statusCode": 200,
+                "body": "{\"result\": \"ok\"}"
+            }
+        }
+    }
+
     // 環境変数を取得.
     const env = analysisEnv();
 

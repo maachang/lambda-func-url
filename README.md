@@ -73,7 +73,7 @@ exports.handler = function(event) {
 
 また懸念点としては、Lambdaの関数URLの実験では、デプロイ後起動までに5～6秒ぐらいかかるが、それ以降は100ミリ秒単位ぐらいで返却されるので、Webアプリとしても普通に使えそう.
 
-あと `プロビジョニングされた同時実行` の設定が２０１９年頃にサポートされ、これにより上記 5～6秒のコールドスタートを回避できるので（ただし通常より高くなり、無料枠外の料金発生となるが）益々　serverless 環境が利用しやすくなっています.
+あと `プロビジョニングされた同時実行` の設定が２０１９年頃にサポートされ、これにより上記 5～6秒のコールドスタートを回避できるので（ただし通常より高くなり、無料枠外の料金発生となるが）益々 `serverless` 環境が利用しやすくなった.
 
 使う人数が少ない社内システムぐらいなら、この `関数URL`機能で「あまり問題ない」と思うし、何より運用コストの安さは、非常に魅力的であると言える.
 
@@ -84,6 +84,18 @@ LFUは `aws lambda` に対して `lang = javascript` に対して、対応する
 LFUは、昨今導入された `関数URL`を利用して、AWSのLambdaで管理するjsファイルやコンテンツに対して、S3バケット+プレフィックスやGithubのリポジトリ以下の内容を参照取得できることで、AWS Lambdaとコンテンツの分離管理が可能とする仕組みを提供する.
 
 また `関数URL` を使う事で `Api Gateway + Lambda` よりも「安価なコスト」で、Webアプリ環境を提供する「簡易的な仕組み」を提供する.
+
+あと、簡単な応答確認として URL + `/~ping` パス実行で最短な応答確認ができる(コールドスタート回避用).
+
+また上記だと curl等のHTTPリクエスト送信が必要となるが、他のAWSサービスから LFU環境にpingアクセスする場合は
+
+~~~json
+{
+  "rawPath": "/~ping"
+}
+~~~
+
+をパラメータとしてセットする事で同様の対応が行える.
 
 ## LFUを利用したaws Lambda側の実装について
 
@@ -102,7 +114,7 @@ LFUのAWS Lambda側の実装は非常にシンプル具体的には `lmdLib/inde
 // lambda main.
 exports.handler = async (event, context) => {
     return await (require("./LFUSetup.js").start(
-        filterFunc, originMime))
+        event, filterFunc, originMime))
         (event, context);
 };
 
@@ -133,7 +145,10 @@ const originMime = undefined;
 
 `start(arguments)` のパラメータは以下の内容が設定可能.
 
-1. arguments[0]=filterFunc<br>
+1. arguments[0]=event<br>
+  index.jsで渡される `event` を設定します.<br>
+
+2. arguments[1]=filterFunc<br>
   コンテンツ実行の事前処理を行いたい場合は設定する.<br>
   たとえば、何らかのアクセス認証を行いたい場合は、filterFuncを設定して行う.<br>
   function(out, resState, resHeader, request);<br>
@@ -144,7 +159,7 @@ const originMime = undefined;
    戻り値: true / false.<br>
           trueの場合filter処理で処理終了となります.<br>
 
-2. arguments[1]=originMime<br>
+3. arguments[2]=originMime<br>
   拡張MimeTypeを設定.<br>
   function(extends)が必要で、拡張子の結果に対して戻り値が {type: mimeType, gz: boolean}を返却する必要がある(対応しない場合は undefinedで設定しない).
 
