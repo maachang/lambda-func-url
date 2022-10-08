@@ -27,6 +27,7 @@ const create = function(headers, cookies) {
     const headList = {};
     if(headers != undefined && headers != null) {
         for(let k in headers) {
+            // key小文字変換.
             headList[k.trim().toLowerCase()] = headers[k];
         }
     }
