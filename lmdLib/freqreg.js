@@ -21,13 +21,15 @@ const currentPath = __dirname + "/";
 const srcRequire = require;
 
 // 指定パス名を整形.
+// jsFlag true の場合jsファイルを対象とします.
 // name パス名を設定.
 // 戻り値: 整形されたパス名が返却されます.
-const trimPath = function(name) {
+const trimPath = function(jsFlag, name) {
     if(name.startsWith("/")) {
         name = name.substring(1).trim();
     }
-    if(!name.toLowerCase().endsWith(".js")) {
+    if(jsFlag == true &&
+        !name.toLowerCase().endsWith(".js")) {
         name += ".js";
     }
     return name;
@@ -47,7 +49,7 @@ const isFile = function(name) {
 const readFile = function(name) {
     const fileName = currentPath + name;
     if(isFile(fileName)) {
-        return fs.readFileSync(fileName).toString();
+        return fs.readFileSync(fileName);
     }
     return null;
 }
@@ -107,6 +109,7 @@ const _FORBIDDEN_FREQUIRES = {
     "s3reqreg.js": true,
     "greqreg.js": true,
     "LFUSetup.js": true,
+    "index.js": true
 };
 
 // file or 元のrequire 用の require.
@@ -114,7 +117,7 @@ const _FORBIDDEN_FREQUIRES = {
 // 戻り値: require結果が返却されます.
 const frequire = function(name) {
     // ファイル名を整形.
-    const jsName = trimPath(name);
+    const jsName = trimPath(true, name);
     // 禁止されたrequire先.
     if(_FORBIDDEN_FREQUIRES[jsName] == true) {
         throw new Error(
@@ -122,7 +125,7 @@ const frequire = function(name) {
             name);
     }
     // ファイル内容を取得.
-    const js = readFile(jsName);
+    let js = readFile(jsName);
     if(js == null) {
         // 存在しない場合はrequireで取得.
         return srcRequire(name);
@@ -132,8 +135,25 @@ const frequire = function(name) {
     // 存在しない場合.
     if(ret == undefined) {
         // ロードしてキャッシュ.
-        ret = originRequire(js);
+        ret = originRequire(js.toString());
+        js = null;
         _GBL_FILE_VALUE_CACHE[jsName] = ret;
+    }
+    return ret;
+}
+
+// file 用の contents.
+// name contains先のファイルを取得します.
+// 戻り値: contains結果(binary)が返却されます.
+const fcontents = function(name) {
+    // ファイル名を整形.
+    const jsName = trimPath(false, name);
+    // ファイル内容を取得.
+    const ret = readFile(jsName);
+    if(ret == null) {
+        throw new Error(
+            "Specified file name does not exist: " +
+            name);
     }
     return ret;
 }
@@ -141,17 +161,13 @@ const frequire = function(name) {
 // 初期設定.
 const init = function() {
     // 登録されていない場合は登録.
-    //if(_g["frequire"] == undefined) {
-    //    Object.defineProperty(_g, "frequire",
-    //        {writable: false, value: frequire});
-    //}
+    // Object.defineProperty(_g, "frequire",
+    //     {writable: false, value: frequire});
+    // Object.defineProperty(_g, "fcontents",
+    //     {writable: false, value: fcontents});
     _g["frequire"] = frequire;
+    _g["fcontents"] = fcontents;
 }
-
-/////////////////////////////////////////////////////
-// 外部定義.
-/////////////////////////////////////////////////////
-exports.frequire = frequire;
 
 // 初期化設定を行って `frequire` をgrobalに登録.
 init();

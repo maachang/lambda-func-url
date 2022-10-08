@@ -4,6 +4,12 @@
 (function() {
 'use strict'
 
+// frequire が 定義されていない場合
+if(frequire == undefined) {
+    // requireをセット(単体テスト用.)
+    frequire = require;
+}
+
 // httpsライブラリ.
 const https = frequire('https');
 

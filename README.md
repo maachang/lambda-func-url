@@ -501,3 +501,60 @@ jhtmlでは、以下のような組込変数が存在する.
   レスポンス用のHTTPヘッダが設定される.<br>
 
 このように、Webアプリを作成する上で最低限の機能を `LFU` は提供する.
+
+## LFUのrequireの扱い
+
+通常の node.js や Lambda(node.js) では `require` を使って、node.jsのライブラリや、外部ライブラリを読み込む.
+
+一方で LFU環境では最低２つの条件から requireする事ができる.
+
+1. s3 or github repogitory.
+2. lambda上のlocal環境.
+
+これに対して、それぞれ
+
+1. s3 = s3require
+2. github repogitory grequire
+3. require
+
+が用意されているが、この場合問題となるものがある.
+
+1つは `s3require` 及び `grequire` から `2. lambda上のlocal環境` の js ファイルが読み込めない事.
+
+もう１つはs3先の `s3require` 先や github repogitory先の `grequire` 先では、このロード処理の実行において `vm.runInContext(...)` での実行を行っているが、この実行では `require` が利用できない状況にある.
+
+理由としては `s3require` 及び `grequire` の javascriptテキストを 実行可能な javascriptに変換するのに　`vm.runInContext` を利用しているが、この実行に対して、セキュリティ上を含めて `require` が利用できないようにしているため、結果的に `s3require` や `grequire` のロード元では `require("vm")` 等の nodejsのライブラリも利用できなくなってしまっている.
+
+これに対して、対応策として `frequire` を提供することで ２つの問題 `2. lambda上のlocal環境` の読み込みと、`require("vm")` 等の nodejsのライブラリの読み込みを可能としている.
+
+ただし `s3require` や `grequire` や `frequire` に共通する事として、`require` では、実行元の js をカレントとした形で、読み込みを行うが、一方でこの３つの`require` では、それぞれ決まった `ROOTディレクトリ` を起点とした参照となる.
+
+詳細説明として、以下の構成であるとする.
+
+```
+[root]
+  |
+  +--[cost]
+  |   |
+  |   +--monthCost.js
+  |
+  +--[lib]
+      |
+      +-- costCalc.js
+      |
+      +-- util.js
+```
+
+この場合 `/root/cost/monthCost.js` が `/root/lib/costCalc.js` を参照する場合は `../lib/costCalc.js` と `require` で定義をする必要があり、一方で `/root/lib/costCalc.js` が `/root/lib/util.js` を参照する場合は `./util.js` を `require` で定義する必要がある.
+
+一方で、LFUでは `s3require` や `grequire` や `frequire` の異なる 条件からの `require` が必要となるので、当然上記のような `ファイルベースでの参照` を行う事は難しい.
+
+よってそれぞれの LFUがサポートする `require` については、指定起点の `ROOT` を元とした形で `require` を定義できる形とする.
+
+その結果冒頭の説明に戻ると LFUでは `/root/cost/monthCost.js` が `/root/lib/costCalc.js` を参照する場合は カレントディレクトリが `[root]` なので `lib/costCalc.js` が `require` 参照先となる.
+
+またこれは Lambdaローカルに定義されている環境以外に `s3require` や `grequire` も カレントディレクトリ環境が設定されており、呼び出しに対して同じような形となっている。
+
+あと、それぞれの呼び出しに関して `vm.runInContext` で呼び出しているが、これの実行元となる `context = global` の条件を元に設定しているので `require` 以外は基本的に、同じ形で実行ができる(たとえば `process`の読み込みや `console`) ので、s3やgithubコンテンツの読み込みで何ら問題がなくしている.
+
+このような形で LFUの 各種 `require` は従来とは違うが、それぞれの分散したソースコードの読み込みに対して、最適な形で提供をしている.

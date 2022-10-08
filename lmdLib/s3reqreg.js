@@ -43,14 +43,6 @@
 (function(_g) {
 'use strict'
 
-// １度呼び出している場合.
-if(_g.s3require != undefined) {
-    // 外部定義.
-    exports.setOption = setOption;
-    // 処理しない.
-    return;
-}
-
 // nodejs library(vm).
 const vm = require('vm');
 

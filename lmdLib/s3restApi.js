@@ -8,6 +8,12 @@
 (function(_g) {
 'use strict'
 
+// frequire が 定義されていない場合
+if(frequire == undefined) {
+    // requireをセット(単体テスト用.)
+    frequire = require;
+}
+
 // REST API先の基本URLを取得.
 const getBaseUrl = function(region) {
     if(region == undefined || region == null) {
