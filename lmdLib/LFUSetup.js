@@ -4,6 +4,9 @@
 (function(_g) {
 'use strict'
 
+// frequire利用可能に設定.
+require("./freqreg.js");
+
 // ローカルrequire.
 // name LFUSetup.jsと同じ位置にあるライブラリ名を設定します.
 // 戻り値: ローカルライブラリが返却されます.
@@ -518,10 +521,36 @@ const resultJsOut = function(resState, resHeader, resBody) {
         resBody);
 }
 
+// リクエスト情報を生成.
+// event 対象のイベントを設定します.
+// 戻り値: リクエスト情報(object)が返却されます.
+const createRequest = function(event) {
+    // リクエスト情報.
+    return {
+        // httpメソッド.
+        method: event.requestContext.http.method.toUpperCase()
+        /// httpプロトコル(HTTP/1.1).
+        ,protocol: event.requestContext.http.protocol
+        // EndPoint(string)パス.
+        ,path: convertHttpPath(event.rawPath)
+        // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
+        ,header: httpHeader.create(event.headers, event.cookies)
+        // urlパラメータ(Object).
+        ,queryParams: getQueryParams(event)
+        // EndPoint(string)パスに対するファイルの拡張子.
+        // undefinedの場合、js実行結果を返却させる.
+        ,extension: getPathToExtends(event.rawPath)
+        // 拡張子mimeType変換用.
+        ,mimeType: getMimeType
+        // 元のeventをセット.
+        ,srcEvent: event
+    };
+}
+
 // [Form]パラメータ解析.
 // n フォームパラメータを設定します.
 // 戻り値: フォームパラメータ解析結果が返却されます.
-var analysisFormParams = function(n) {
+const analysisFormParams = function(n) {
     const list = n.split("&");
     const len = list.length;
     const ret = {};
@@ -534,6 +563,66 @@ var analysisFormParams = function(n) {
         }
     }
     return ret;
+}
+
+// リクエストパラメータを設定.
+// event 対象のeventを設定します.
+// request 対象のリクエスト情報を設定します.
+var setRequestParameter = function(event, request) {
+    // bodyが空の場合(GET).
+    if(typeof(event.body) != "string") {
+        // 空をセット.
+        request.body = undefined;
+        request.isBinary = false;
+        // パラメータにurlパラメータをセット.
+        request.params = request.queryParams;
+    // bodyが存在する場合(POST).
+    } else {
+        let body, isBinary;
+        // Base64で設定されている場合.
+        if(event.body.isBase64Encoded == true) {
+            // Base64からバイナリ変換してバイナリとしてセット.
+            body = Buffer.from(event.body, 'base64');
+            isBinary = true;
+        } else {
+            // 文字列としてセット.
+            body = event.body;
+            isBinary = false;
+        }
+        // リクエストのコンテンツタイプを取得.
+        const contentType = request.header.get("content-type");
+        // フォーム形式の場合.
+        if(contentType == mime.FORM_DATA) {
+            if(isBinary) {
+                body = body.toString();
+            }
+            // フォームパラメータ解析.
+            request.params = analysisFormParams(body);
+            request.body = undefined;
+            request.isBinary = false;
+        // JSON形式の場合.
+        } else if(contentType == mime.JSON) {
+            if(isBinary) {
+                body = body.toString();
+            }
+            // JSON解析.
+            request.params = JSON.parse(body);
+            request.body = undefined;
+            request.isBinary = false;
+        // 文字設定の場合.
+        } else if(!isBinary) {
+            // フォームパラメータ解析.
+            request.params = analysisFormParams(body);
+            request.body = undefined;
+            request.isBinary = false;
+        // それ以外の場合.
+        } else {
+            // バイナリ型でセット.
+            request.params = {};
+            request.body = body;
+            request.isBinary = isBinary;
+        }
+    }
 }
 
 // [Main]ハンドラー実行.
@@ -551,82 +640,11 @@ const _main_handler = async function(event, context) {
     let resHeader = httpHeader.create();
 
     try {
+        // リクエストを生成.
+        const request = createRequest(event);
 
-        // リクエスト情報.
-        const request = {
-            // httpメソッド.
-            method: event.requestContext.http.method.toUpperCase()
-            /// httpプロトコル(HTTP/1.1).
-            ,protocol: event.requestContext.http.protocol
-            // EndPoint(string)パス.
-            ,path: convertHttpPath(event.rawPath)
-            // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
-            ,header: httpHeader.create(event.headers, event.cookies)
-            // urlパラメータ(Object).
-            ,queryParams: getQueryParams(event)
-            // EndPoint(string)パスに対するファイルの拡張子.
-            // undefinedの場合、js実行結果を返却させる.
-            ,extension: getPathToExtends(event.rawPath)
-            // 拡張子mimeType変換用.
-            ,mimeType: getMimeType
-            // 元のeventをセット.
-            ,srcEvent: event
-        };
-
-        // bodyが空の場合(GET).
-        if(typeof(event.body) != "string") {
-            // 空をセット.
-            request.body = undefined;
-            request.isBinary = false;
-            // パラメータにurlパラメータをセット.
-            request.params = request.queryParams;
-        // bodyが存在する場合(POST).
-        } else {
-            let body, isBinary;
-            // Base64で設定されている場合.
-            if(event.body.isBase64Encoded == true) {
-                // Base64からバイナリ変換してバイナリとしてセット.
-                body = Buffer.from(event.body, 'base64');
-                isBinary = true;
-            } else {
-                // 文字列としてセット.
-                body = event.body;
-                isBinary = false;
-            }
-            // リクエストのコンテンツタイプを取得.
-            const contentType = request.header.get("content-type");
-            // フォーム形式の場合.
-            if(contentType == mime.FORM_DATA) {
-                if(isBinary) {
-                    body = body.toString();
-                }
-                // フォームパラメータ解析.
-                request.params = analysisFormParams(body);
-                request.body = undefined;
-                request.isBinary = false;
-            // JSON形式の場合.
-            } else if(contentType == mime.JSON) {
-                if(isBinary) {
-                    body = body.toString();
-                }
-                // JSON解析.
-                request.params = JSON.parse(body);
-                request.body = undefined;
-                request.isBinary = false;
-            // 文字設定の場合.
-            } else if(!isBinary) {
-                // フォームパラメータ解析.
-                request.params = analysisFormParams(body);
-                request.body = undefined;
-                request.isBinary = false;
-            // それ以外の場合.
-            } else {
-                // バイナリ型でセット.
-                request.params = {};
-                request.body = body;
-                request.isBinary = isBinary;
-            }
-        }
+        // リクエストパラメータを設定.
+        setRequestParameter(event, request);
 
         //////////////////////////////////////////
         // filterFunctionが設定されてる場合呼び出す.
@@ -657,88 +675,69 @@ const _main_handler = async function(event, context) {
         /////////////////////////////////////////////////
         if(request.extension != undefined) {
             // 配置されているコンテンツのバイナリを返却する.
-            try {
-                let resBody = undefined;
-                ///////////////////////////////
-                // jhtmlのテンプレート実行を行う.
-                ///////////////////////////////
-                if(request.extension == "jhtml") {
-                    // jhtmlの実際のコンテンツ名を作成.
-                    // .jhtml => .js.html
-                    const name = request.path.substring(
-                        0, request.path.length - 6) + ".js.html";
-                    
-                    // jhtml内容を取得.
-                    resBody = await _requestFunction(false, name);
-                    // 取得内容(binary)を文字変換.
-                    resBody = Buffer.from(resBody).toString();
+            let resBody = undefined;
 
-                    // jhtmlライブラリを取得.
-                    const jhtml = require("./jhtml.js");
+            ///////////////////////////////
+            // jhtmlのテンプレート実行を行う.
+            ///////////////////////////////
+            if(request.extension == "jhtml") {
+                // jhtmlの実際のコンテンツ名を作成.
+                // .jhtml => .js.html
+                const name = request.path.substring(
+                    0, request.path.length - 6) + ".js.html";
+                
+                // jhtml内容を取得.
+                resBody = await _requestFunction(false, name);
+                // 取得内容(binary)を文字変換.
+                resBody = Buffer.from(resBody).toString();
 
-                    // jhtmlをjs変換.
-                    resBody = jhtml.convertJhtmlToJs(resBody);
-                    // jhtmlを実行.
-                    resBody = await jhtml.executeJhtml(
-                        name, resBody, request, resState, resHeader);
+                // jhtmlライブラリを取得.
+                const jhtml = _local_require("./jhtml.js");
 
-                    // 環境変数で、圧縮なし指定でない場合.
-                    if(_g.ENV.noneGzip != true) {
-                        // 圧縮処理を行う.
-                        resBody = await mime.compressToContents(
-                            request.header, resHeader, resBody);
-                    }
+                // jhtmlをjs変換.
+                resBody = jhtml.convertJhtmlToJs(resBody);
+                // jhtmlを実行.
+                resBody = await jhtml.executeJhtml(
+                    name, resBody, request, resState, resHeader);
 
-                    // レスポンス出力.
-                    return resultJsOut(resState, resHeader, resBody);
-
-                }
-                //////////////////////////
-                // コンテンツファイルを取得.
-                //////////////////////////
-
-                // 対象パスのコンテンツ情報を取得.
-                resBody = await _requestFunction(false, request.path);
-
-                // mimeTypeを取得.
-                const resMimeType = getMimeType(request.extension);
-
-                // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
-                resHeader.put("content-type", resMimeType.type);
-
-                // 圧縮対象の場合.
-                // または環境変数で、圧縮なし指定でない場合.
-                if(resMimeType.gz == true && _g.ENV.noneGzip != true) {
+                // 環境変数で、圧縮なし指定でない場合.
+                if(_g.ENV.noneGzip != true) {
                     // 圧縮処理を行う.
                     resBody = await mime.compressToContents(
                         request.header, resHeader, resBody);
                 }
 
-                // レスポンス返却.
-                return returnResponse(
-                    200,
-                    resHeader.toHeaders(),
-                    resBody);
+                // レスポンス出力.
+                return resultJsOut(resState, resHeader, resBody);
 
-            // エラーが発生した場合.
-            } catch(e) {
-                // エラー出力.
-                console.error("## error(500): " + e);
-                console.error(e);
-
-                // 500エラー返却.
-                const resBody =
-                    "error 500: " + httpStatus.toMessage(500);
-                // 新しいレスポンスヘッダを作成.
-                resHeader = httpHeader.create();
-                // テキストのレスポンスMimeTypeをセット.
-                resHeader.put("content-type", getMimeType("text").type);
-                // ファイルが存在しない(500).
-                return returnResponse(
-                    500,
-                    resHeader.toHeaders(),
-                    resBody);
             }
+
+            //////////////////////////
+            // コンテンツファイルを取得.
+            //////////////////////////
+
+            // 対象パスのコンテンツ情報を取得.
+            resBody = await _requestFunction(false, request.path);
+
+            // mimeTypeを取得.
+            const resMimeType = getMimeType(request.extension);
+
+            // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
+            resHeader.put("content-type", resMimeType.type);
+
+            // 圧縮対象の場合.
+            // または環境変数で、圧縮なし指定でない場合.
+            if(resMimeType.gz == true && _g.ENV.noneGzip != true) {
+                // 圧縮処理を行う.
+                resBody = await mime.compressToContents(
+                    request.header, resHeader, resBody);
+            }
+
+            // レスポンス返却.
+            return returnResponse(
+                200,
+                resHeader.toHeaders(),
+                resBody);
         }
 
         ////////////////////////////
@@ -792,7 +791,25 @@ const _main_handler = async function(event, context) {
             500,
             resHeader.toHeaders(),
             resBody);
-    }    
+    }
+}
+
+// テストタイマー.
+const timer = function() {
+    let startTiem = Date.now();
+
+    const ret = {};
+
+    ret.start = function() {
+        startTiem = Date.now();
+    }
+
+    ret.time = function(msg) {
+        const n = Date.now() - startTiem;
+        console.log(msg + ": " + n);
+    }
+
+    return ret;
 }
 
 // lambda-func-url初期処理.
@@ -823,6 +840,7 @@ const start = function(event, filterFunc, originMime) {
 
     // s3reqreg.
     const s3reqreg = _local_require("s3reqreg");
+
     // s3接続定義が存在する場合.
     if(env.s3Connect != undefined) {
         // 基本設定.
@@ -870,8 +888,8 @@ const start = function(event, filterFunc, originMime) {
     // requestFunction呼び出し処理のFunction登録
     regRequestRequireFunc(env);
 
-     // ENVをglobalに設定.
-     _g.ENV = env;
+    // ENVをglobalに設定.
+    _g.ENV = env;
 
     // main_handlerを返却.
     return _main_handler;

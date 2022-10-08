@@ -46,7 +46,7 @@
 //
 
 // nodejs library(vm).
-const vm = require('vm');
+const vm = frequire('vm');
 
 // jhtml出力メソッド名.
 const _OUT = "$out";

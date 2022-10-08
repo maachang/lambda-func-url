@@ -43,6 +43,14 @@
 (function(_g) {
 'use strict'
 
+// １度呼び出している場合.
+if(_g.s3require != undefined) {
+    // 外部定義.
+    exports.setOption = setOption;
+    // 処理しない.
+    return;
+}
+
 // nodejs library(vm).
 const vm = require('vm');
 
@@ -340,10 +348,17 @@ const s3contents = function(path, curerntPath) {
 
 // 初期設定.
 const init = function() {
-    // s3requireをglobalに登録.
-    _g.s3require = s3require;
-    // s3contentsをglobalに登録.
-    _g.s3contents = s3contents;
+    // 登録されていない場合は登録.
+    //if(_g["s3require"] == undefined) {
+    //    // s3requireをglobalに登録(書き換え禁止).
+    //    Object.defineProperty(_g, "s3require",
+    //        {writable: false, value: s3require});
+    //    // s3contentsをglobalに登録(書き換え禁止).
+    //    Object.defineProperty(_g, "s3contents",
+    //        {writable: false, value: s3contents});
+    //}
+    _g["s3require"] = s3require;
+    _g["s3contents"] = s3contents;
 }
 
 /////////////////////////////////////////////////////
@@ -351,7 +366,7 @@ const init = function() {
 /////////////////////////////////////////////////////
 exports.setOption = setOption;
 
-// 初期化設定を行って `s3require` をgrobalに登録.
+// 初期化設定を行って `s3require`, `s3contents` をgrobalに登録.
 init();
 
 })(global);

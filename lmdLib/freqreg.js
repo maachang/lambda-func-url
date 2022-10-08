@@ -1,0 +1,159 @@
+///////////////////////////////////////////////////////////////////////////////
+// lambda側のjsファイルをrequireする.
+// または requreで詠み込む nodejsの基本ライブラリもrequireする.
+// script.runInContext() で実行した場合、context=global設定していても、requireが
+// 利用できない.
+// そうすると s3require や grequire で requireが利用できないので、使い勝手が非常に
+// 悪い.
+// 代替え的にrequireを利用できるようにして、lmdLib以下のrequireもできるようにする.
+///////////////////////////////////////////////////////////////////////////////
+(function(_g) {
+'use strict'
+
+// nodejs library.
+const vm = require('vm');
+const fs = require('fs');
+
+// カレントパス名.
+const currentPath = __dirname + "/";
+
+// 元のrequire.
+const srcRequire = require;
+
+// 指定パス名を整形.
+// name パス名を設定.
+// 戻り値: 整形されたパス名が返却されます.
+const trimPath = function(name) {
+    if(name.startsWith("/")) {
+        name = name.substring(1).trim();
+    }
+    if(!name.toLowerCase().endsWith(".js")) {
+        name += ".js";
+    }
+    return name;
+}
+
+// ファイル存在確認.
+// name 対象のファイル名を設定します.
+// 戻り値: ファイル名が存在する場合 true.
+const isFile = function(name) {
+    return fs.existsSync(currentPath + name);
+}
+
+// ファイルを詠み込む.
+// name 対象のファイル名を設定します.
+// 戻り値: ファイル内容がstringで返却されます.
+//        存在しない場合は null が返却されます.
+const readFile = function(name) {
+    const fileName = currentPath + name;
+    if(isFile(fileName)) {
+        return fs.readFileSync(fileName).toString();
+    }
+    return null;
+}
+
+// originRequire読み込みスクリプトheader.
+const ORIGIN_REQUIRE_SCRIPT_HEADER =
+    "(function() {\n" +
+    "'use strict';\n" +
+    "return function(args){\n" +
+    "const exports = args;\n";
+    "const module = {exports: args};\n";
+
+// originRequire読み込みスクリプトfooder.
+const ORIGIN_REQUIRE_SCRIPT_FOODER =
+    "\n};\n})();";
+
+// originRequireを実施.
+// name load対象のNameを設定します.
+// js load対象のjsソース・ファイルを設定します.
+// 戻り値: exportsに設定された内容が返却されます.
+const originRequire = function(name, js) {
+    // origin的なrequireスクリプトを生成.
+    let srcScript = ORIGIN_REQUIRE_SCRIPT_HEADER
+        + js
+        + ORIGIN_REQUIRE_SCRIPT_FOODER;
+    try {
+        // Contextを生成.
+        // runInContextはsandboxなので、現在のglobalメモリを設定する.
+        let memory = _g;
+        let context = vm.createContext(memory);
+    
+        // スクリプト実行環境を生成.
+        let script = new vm.Script(srcScript, {filename: name});
+        srcScript = null;
+        const executeJs = script.runInContext(context, {filename: name});
+        script = null; context = null; memory = null;
+    
+        // スクリプトを実行して、exportsの条件を取得.
+        var ret = {};
+        executeJs(ret);
+    
+        // 実行結果を返却.
+        return ret;
+    } catch(e) {
+        console.error(
+            "## [ERROR] originRequire name: " + name);
+        throw e;
+    }
+}
+
+// frequireeでloadした内容をCacheする.
+const _GBL_FILE_VALUE_CACHE = {};
+
+// 禁止requireファイル群.
+const _FORBIDDEN_FREQUIRES = {
+    "freqreg.js": true,
+    "s3reqreg.js": true,
+    "greqreg.js": true,
+    "LFUSetup.js": true,
+};
+
+// file or 元のrequire 用の require.
+// name require先のファイルを取得します.
+// 戻り値: require結果が返却されます.
+const frequire = function(name) {
+    // ファイル名を整形.
+    const jsName = trimPath(name);
+    // 禁止されたrequire先.
+    if(_FORBIDDEN_FREQUIRES[jsName] == true) {
+        throw new Error(
+            "Forbidden require destinations specified: " +
+            name);
+    }
+    // ファイル内容を取得.
+    const js = readFile(jsName);
+    if(js == null) {
+        // 存在しない場合はrequireで取得.
+        return srcRequire(name);
+    }
+    // キャッシュ情報から取得.
+    let ret = _GBL_FILE_VALUE_CACHE[jsName];
+    // 存在しない場合.
+    if(ret == undefined) {
+        // ロードしてキャッシュ.
+        ret = originRequire(js);
+        _GBL_FILE_VALUE_CACHE[jsName] = ret;
+    }
+    return ret;
+}
+
+// 初期設定.
+const init = function() {
+    // 登録されていない場合は登録.
+    //if(_g["frequire"] == undefined) {
+    //    Object.defineProperty(_g, "frequire",
+    //        {writable: false, value: frequire});
+    //}
+    _g["frequire"] = frequire;
+}
+
+/////////////////////////////////////////////////////
+// 外部定義.
+/////////////////////////////////////////////////////
+exports.frequire = frequire;
+
+// 初期化設定を行って `frequire` をgrobalに登録.
+init();
+
+})(global);

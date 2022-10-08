@@ -147,11 +147,11 @@ const originMime = undefined;
   コンテンツ実行の事前処理を行いたい場合は設定する.<br>
   たとえば、何らかのアクセス認証を行いたい場合は、filterFuncを設定して行う.<br>
   function(out, resState, resHeader, request);<br>
-   out [0]にレスポンスBodyが設定されます.<br>
+   out Array[0]に返却対象の処理結果のレスポンスBodyを設定します.<br>
    resState: レスポンスステータス(httpStatus.js).<br>
    resHeader レスポンスヘッダ(httpHeader.js).<br>
    request Httpリクエスト情報.<br>
-   戻り値: true / false.<br>
+   戻り値: true / false(boolean).<br>
           trueの場合filter処理で処理終了となります.<br>
 
 2. originMime<br>

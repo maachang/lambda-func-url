@@ -6,7 +6,7 @@
 'use strict'
 
 // zlib.
-var zlib = require('zlib');
+var zlib = frequire('zlib');
 
 // [mimeType]octet-stream.
 const OCTET_STREAM = "application/octet-stream";

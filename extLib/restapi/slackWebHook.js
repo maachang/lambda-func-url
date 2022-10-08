@@ -5,7 +5,7 @@
 'use strict'
 
 // https.
-const https = require("https");
+const https = frequire("https");
 
 // 文字エンコード.
 const _TEXT_ENCODE = new TextEncoder();

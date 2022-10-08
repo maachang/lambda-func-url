@@ -5,7 +5,7 @@
 'use strict'
 
 // aws-sdk javascript V2.
-const AWS = require('aws-sdk');
+const AWS = frequire('aws-sdk');
 
 // 文字デコード.
 const _TEXT_DECODE = new TextDecoder();

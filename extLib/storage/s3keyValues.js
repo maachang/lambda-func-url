@@ -21,7 +21,7 @@
 //
 
 // aws-sdk javascript V2.
-const AWS = require('aws-sdk');
+const AWS = frequire('aws-sdk');
 
 // インデックスである `=Key=base64(value)` の条件を取得.
 const getIndexKeyValueName = function(key, value) {

@@ -401,10 +401,17 @@ const gcontents = function(
 
 // 初期設定.
 const init = function() {
-    // grequireをglobalに登録.
-    _g.grequire = grequire;
-    // gcontentsをglobalに登録.
-    _g.gcontents = gcontents;
+    // 登録されていない場合は登録.
+    //if(_g["grequire"] == undefined) {
+    //    // grequireをglobalに登録(書き換え禁止).
+    //    Object.defineProperty(_g, "grequire",
+    //        {writable: false, value: grequire});
+    //    // gcontentsをglobalに登録(書き換え禁止).
+    //    Object.defineProperty(_g, "gcontents",
+    //        {writable: false, value: gcontents});
+    //}
+    _g["grequire"] = grequire;
+    _g["gcontents"] = gcontents;
 }
 
 /////////////////////////////////////////////////////
@@ -415,7 +422,7 @@ exports.setDefault = setDefault;
 exports.setOrganizationToken = setOrganizationToken;
 exports.setOrganizationTokenToJson = setOrganizationTokenToJson;
 
-// 初期化設定を行って `grequire` をgrobalに登録.
+// 初期化設定を行って `grequire`, `gcontents` をgrobalに登録.
 init();
 
 })(global);
