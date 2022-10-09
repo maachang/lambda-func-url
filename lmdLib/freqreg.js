@@ -10,6 +10,11 @@
 (function(_g) {
 'use strict'
 
+// すでに定義済みの場合.
+if(_g.frequire != undefined) {
+    return;
+}
+
 // nodejs library.
 const vm = require('vm');
 const fs = require('fs');
@@ -160,13 +165,12 @@ const fcontents = function(name) {
 
 // 初期設定.
 const init = function() {
-    // 登録されていない場合は登録.
-    // Object.defineProperty(_g, "frequire",
-    //     {writable: false, value: frequire});
-    // Object.defineProperty(_g, "fcontents",
-    //     {writable: false, value: fcontents});
-    _g["frequire"] = frequire;
-    _g["fcontents"] = fcontents;
+    Object.defineProperty(_g, "frequire",
+        {writable: false, value: frequire});
+    Object.defineProperty(_g, "fcontents",
+        {writable: false, value: fcontents});
+    //_g["frequire"] = frequire;
+    //_g["fcontents"] = fcontents;
 }
 
 // 初期化設定を行って `frequire` をgrobalに登録.

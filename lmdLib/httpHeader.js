@@ -4,12 +4,6 @@
 (function() {
 'use strict'
 
-// frequire が 定義されていない場合
-if(frequire == undefined) {
-    // requireをセット(単体テスト用.)
-    frequire = require;
-}
-
 // cookie内容 "key=value" をパース.
 // out {"key": "value"} がセットされます.
 // value "key=value" のような条件を設定します.

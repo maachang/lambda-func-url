@@ -10,12 +10,6 @@
 (function(_g) {
 'use strict'
 
-// frequire が 定義されていない場合
-if(frequire == undefined) {
-    // requireをセット(単体テスト用.)
-    frequire = require;
-}
-
 // crypto.
 const crypto = frequire('crypto');
 

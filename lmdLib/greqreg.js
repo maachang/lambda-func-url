@@ -13,6 +13,15 @@
 (function(_g) {
 'use strict'
 
+// すでに定義済みの場合.
+if(_g.grequire != undefined) {
+    const m = _g.grequire.exports;
+    for(let k in m) {
+        exports[k] = m[k];
+    }
+    return;
+}
+
 // nodejs library.
 const vm = require('vm');
 const https = require('https');
@@ -401,17 +410,22 @@ const gcontents = function(
 
 // 初期設定.
 const init = function() {
-    // 登録されていない場合は登録.
-    //if(_g["grequire"] == undefined) {
-    //    // grequireをglobalに登録(書き換え禁止).
-    //    Object.defineProperty(_g, "grequire",
-    //        {writable: false, value: grequire});
-    //    // gcontentsをglobalに登録(書き換え禁止).
-    //    Object.defineProperty(_g, "gcontents",
-    //        {writable: false, value: gcontents});
-    //}
-    _g["grequire"] = grequire;
-    _g["gcontents"] = gcontents;
+    // grequireをglobalに登録(書き換え禁止).
+    Object.defineProperty(_g, "grequire",
+        {writable: false, value: grequire});
+    // gcontentsをglobalに登録(書き換え禁止).
+    Object.defineProperty(_g, "gcontents",
+        {writable: false, value: gcontents});
+    //_g["grequire"] = grequire;
+    //_g["gcontents"] = gcontents;
+
+    // exportsを登録.
+    grequire.exports = {
+        setOptions: setOptions,
+        setDefault: setDefault,
+        setOrganizationToken: setOrganizationToken,
+        setOrganizationTokenToJson: setOrganizationTokenToJson
+    }
 }
 
 /////////////////////////////////////////////////////

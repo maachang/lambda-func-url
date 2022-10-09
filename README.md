@@ -506,30 +506,37 @@ jhtmlでは、以下のような組込変数が存在する.
 
 通常の node.js や Lambda(node.js) では `require` を使って、node.jsのライブラリや、外部ライブラリを読み込む.
 
-一方で LFU環境では最低２つの条件から requireする事ができる.
+一方で LFU環境では3つの条件から requireする事ができる.
 
-1. s3 or github repogitory.
-2. lambda上のlocal環境.
+1. s3
+2. github repogitory.
+3. lambda上のlocal環境.
 
 これに対して、それぞれ
 
 1. s3 = s3require
-2. github repogitory grequire
-3. require
+2. github repogitory = grequire
+3. lambda上 = require
 
 が用意されているが、この場合問題となるものがある.
 
-1つは `s3require` 及び `grequire` から `2. lambda上のlocal環境` の js ファイルが読み込めない事.
+### require問題1 `s3require` 及び `grequire` から `3. lambda上のlocal環境` の jsファイル読み込みが面倒
 
-もう１つはs3先の `s3require` 先や github repogitory先の `grequire` 先では、このロード処理の実行において `vm.runInContext(...)` での実行を行っているが、この実行では `require` が利用できない状況にある.
+`require` は実行するjsの格納位置をカレントパスとするので、これに対して `s3require` や `grequire` で読み込んだjsファイル内で `require` を利用したい場合、フルパス以外からのlambdaローカル内の jsファイルを読み込むのが難しい問題がある.
 
-理由としては `s3require` 及び `grequire` の javascriptテキストを 実行可能な javascriptに変換するのに　`vm.runInContext` を利用しているが、この実行に対して、セキュリティ上を含めて `require` が利用できないようにしているため、結果的に `s3require` や `grequire` のロード元では `require("vm")` 等の nodejsのライブラリも利用できなくなってしまっている.
+### require問題2 `s3require` 及び `grequire` で読み込むjsファイルから `require` が利用できない
 
-これに対して、対応策として `frequire` を提供することで ２つの問題 `2. lambda上のlocal環境` の読み込みと、`require("vm")` 等の nodejsのライブラリの読み込みを可能としている.
+もう１つの問題として s3やgithubのjsファイルから `require` の利用ができないので、結果的にnode.jsのライブラリが利用できない点にある.
 
-ただし `s3require` や `grequire` や `frequire` に共通する事として、`require` では、実行元の js をカレントとした形で、読み込みを行うが、一方でこの３つの`require` では、それぞれ決まった `ROOTディレクトリ` を起点とした参照となる.
+理由として、s3先の `s3require` github repogitory先の `grequire` 先のjsファイルの読み込んでjsとして実行させるために `vm.runInContext(...)` を利用しているが、ここで実行される jsファイル内では `require` が利用できなくなる（セキュリティ上).
 
-詳細説明として、以下の構成であるとする.
+### LFUでのrequire問題解決内容
+
+これに対して、対応策として `frequire` を提供することで ２つの問題 `lambda上のlocal環境のJSファイル` の読み込みと、`require("vm")` 等の nodejsのライブラリの読み込みを可能としている.
+
+ただし、この `frequire` は、通常利用する `require` と異なり、`frequire` を生成する `fregreq.js`が設定されている場所を、カレントディレクトリとして、読み込む方式となっている.
+
+具体的に、以下環境を元に説明をしたい.
 
 ```
 [root]
@@ -539,22 +546,24 @@ jhtmlでは、以下のような組込変数が存在する.
   |   +--monthCost.js
   |
   +--[lib]
-      |
-      +-- costCalc.js
-      |
-      +-- util.js
+  |   |
+  |   +-- costCalc.js
+  |   |
+  |   +-- util.js
+  |
+  +-- fregreq.js
 ```
 
-この場合 `/root/cost/monthCost.js` が `/root/lib/costCalc.js` を参照する場合は `../lib/costCalc.js` と `require` で定義をする必要があり、一方で `/root/lib/costCalc.js` が `/root/lib/util.js` を参照する場合は `./util.js` を `require` で定義する必要がある.
+この環境で、通常の `require` を利用する場合 `/root/cost/monthCost.js` が `/root/lib/costCalc.js` を `require` で参照する場合は `require("../lib/costCalc.js")` と定義をする必要がある。
 
-一方で、LFUでは `s3require` や `grequire` や `frequire` の異なる 条件からの `require` が必要となるので、当然上記のような `ファイルベースでの参照` を行う事は難しい.
+また `/root/lib/costCalc.js` が `/root/lib/util.js` を参照する場合は `require("./util.js")` を `require` で定義する必要がある.
 
-よってそれぞれの LFUがサポートする `require` については、指定起点の `ROOT` を元とした形で `require` を定義できる形とする.
+一方LFU環境では `frequire` を提供する事で、上記の場合は `fregreq.js` が存在するのは `root` 直下にあるので、カレントパスは `root` となり、これに準じた呼び出しとなる.
 
-その結果冒頭の説明に戻ると LFUでは `/root/cost/monthCost.js` が `/root/lib/costCalc.js` を参照する場合は カレントディレクトリが `[root]` なので `lib/costCalc.js` が `require` 参照先となる.
+`frequire` の場合、冒頭の説明で説明しなおすと `/root/cost/monthCost.js` が `/root/lib/costCalc.js` を `frequire` で参照する場合は カレントディレクトリが `[root]` なので `frequire("lib/costCalc.js")` として利用する事ができる.
 
 またこれは Lambdaローカルに定義されている環境以外に `s3require` や `grequire` も カレントディレクトリ環境が設定されており、呼び出しに対して同じような形となっている。
 
-あと、それぞれの呼び出しに関して `vm.runInContext` で呼び出しているが、これの実行元となる `context = global` の条件を元に設定しているので `require` 以外は基本的に、同じ形で実行ができる(たとえば `process`の読み込みや `console`) ので、s3やgithubコンテンツの読み込みで何ら問題がなくしている.
+また `frequire` は `s3require` や `grequire` のjsファイル内でも、`require` と違って利用する事ができる.
 
 このような形で LFUの 各種 `require` は従来とは違うが、それぞれの分散したソースコードの読み込みに対して、最適な形で提供をしている.
