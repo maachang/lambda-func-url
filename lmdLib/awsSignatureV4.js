@@ -112,6 +112,10 @@ const getSignatureKey = function(
 const signatureV4Step1 = function(
     method, path, queryString, header, payload
 ) {
+    // payloadが設定されていない場合、空文字をセット.
+    if(payload == undefined || payload == null) {
+        payload = "";
+    }
     // SignedHeadersを作成.
     const signedHeaders = "content-type;host;x-amz-date";
     // canonicalHeadersを作成.

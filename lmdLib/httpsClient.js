@@ -11,29 +11,42 @@ const https = frequire('https');
 // host 対象のホスト名を設定します.
 // path 対象のパス名を設定します.
 // options その他オプションを設定します.
-//  - method
+//  - method(string)
 //    HTTPメソッドを設定します.
 //    設定しない場合は GET.
-//  - header
+//  - header({})
 //    HTTPリクエストヘッダ(Object)を設定します.
-//  - body
+//  - body(Buffer or String)
 //    HTTPリクエストBodyを設定します.
-//  - port
+//  - port(number)
 //    HTTPS接続先ポート番号を設定します.
+//  - response({})
+//    レスポンスステータスやレスポンスヘッダが返却されます.
+//    response = {
+//      status: number,
+//      header: object
+//    }
 // 戻り値: Promise(Buffer)が返却されます.
 const request = function(host, path, options) {
-    // メソッドを取得.
+    // optionsが存在しない場合.
+    if(options == undefined || options == null) {
+        options = {};
+    }
+    // requestメソッドを取得.
     const method = options.method == undefined ?
         "GET" : options.method.toUpperCase();
-    // ヘッダを取得.
+    // requestヘッダを取得.
     const header = options.header == undefined ?
         [] : options.header;
-    // bodyを取得.
+    // requestBodyを取得.
     const body = options.body == undefined ?
         undefined : options.body;
-    // portを取得.
+    // httpsPortを取得.
     const port = options.port == undefined ?
-        undefined : options.port;
+        "" : options.port;
+    // responseを取得.
+    const response = options.response == undefined ?
+        undefined : options.response;
     // bodyが存在して、header.content-lengthが存在しない.
     if(body != undefined && header["content-length"] == undefined) {
         header["content-length"] = Buffer.byteLength(body);
@@ -71,6 +84,11 @@ const request = function(host, path, options) {
                         body.push(chunk);
                     });
                     res.on("end", ()=>{
+                        // レスポンス情報を受け付ける.
+                        if(response != undefined) {
+                            response.status = res.statusCode;
+                            response.header = res.headers;
+                        }
                         resolve(Buffer.concat(body));
                     });
                     res.on("error", reject);
