@@ -24,7 +24,9 @@ if(_g.grequire != undefined) {
 
 // nodejs library.
 const vm = require('vm');
-const https = require('https');
+
+// HttpsClient.
+const httpsClient = require("./httpsClient");
 
 // 文字列が存在するかチェック.
 // s 文字列を設定します.
@@ -47,22 +49,27 @@ const _checkConnectGithub = function(organization, repo, branch) {
     }
 }
 
-// GithubコンテンツURL.
-const _GITHUB_CONTENT_URL = "https://raw.githubusercontent.com/";
+// GithubコンテンツHost.
+const GITHUB_CONTENT_HOST = "raw.githubusercontent.com";
 
-// githubリポジトリ内のオブジェクトを取得するためのURLを生成.
+// githubリポジトリ内のオブジェクトを取得するためのパスを生成.
 // https://raw.githubusercontent.com/{organization}/{repo}/{branch}/{path}
 // organization githubのorganization を設定します.
 // repo githubのrepogitory を設定します.
 // branch 対象のbranch を設定します.
 // currentPath 対象のカレントパスを設定します.
 // path 対象のpath を設定します.
-// 戻り値: URLが返却されます.
-const getGithubObjectToURL = function(organization, repo, branch, currentPath, path) {
+// 戻り値: パス名が返却されます.
+const getGithubObjectToPath = function(
+    organization, repo, branch, currentPath, path) {
     _checkConnectGithub(organization, repo, branch);
     // パスの先頭に / がある場合は除去する.
     if((path = path.trim()).startsWith("/")) {
         path = path.substring(1);
+    }
+    // パスの終端に / がある場合は除外する.
+    if(path.endsWith("/")) {
+        path = path.substring(0, path.length - 1).trim();
     }
     // カレントパスが設定されている場合.
     if(useString(currentPath)) {
@@ -72,73 +79,46 @@ const getGithubObjectToURL = function(organization, repo, branch, currentPath, p
     if(!useString(path)) {
         throw new Error("path does not exist");
     }
-    return _GITHUB_CONTENT_URL +
-        organization + "/" + repo + "/" + branch + "/" + path;
+    // パス名を返却.
+    return organization + "/" + repo + "/" + 
+        branch + "/" + path;
 }
 
 // 対象Githubリポジトリ内のオブジェクトを取得.
-// url 対象のURLLを設定します.
+// path 対象のpathを設定します.
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
 // 戻り値: HTTPレスポンスBodyが返却されます.
-const getGithubObject = function(url, token) {
-    return new Promise((resolve, reject) => {
-        // デフォルトヘッダを設定.
-        const headers = {
-            "X-Header": "X-Header"
-        };
-        // privateリポジトリにアクセスする場合
-        // tokenが必要.
-        if(typeof(token) == "string") {
-            headers["Authorization"] = "token " + token;
-        }
-        try {
-            // request作成.
-            const req = https.request(url, {
-                "method": "GET",
-                "headers": headers 
-            }, (res) => {
-                // httpステータスエラーの場合(400以上).
-                if(res.statusCode >= 400) {
-                    reject(new Error("httpState: " + res.statusCode +
-                        " url: " + url +
-                        " messaeg: " + res.statusMessage));
-                    return;
-                }
-                // response処理.
-                try {
-                    // バイナリ受信.
-                    const body = [];
-                    res.on("data", (chunk)=>{
-                        body.push(chunk);
-                    });
-                    res.on("end", ()=>{
-                        resolve(Buffer.concat(body));
-                    });
-                    res.on("error", reject);
-                } catch (err) {
-                    reject(err)
-                }
-            });
-            // request処理.
-            req.on('error', reject);
-            req.end();
-        } catch (err) {
-            reject(err)
-        }
-    });
+const getGithubObject = function(path, token) {
+    // デフォルトヘッダを設定.
+    const header = {
+        "X-Header": "X-Header"
+    };
+    // privateリポジトリにアクセスする場合
+    // tokenが必要.
+    if(typeof(token) == "string") {
+        header["Authorization"] = "token " + token;
+    }
+    // オプションを設定.
+    const options = {
+        method: "GET",
+        header: header
+    }
+    // リクエスト問い合わせ.
+    return httpsClient.request(
+        GITHUB_CONTENT_HOST,
+        path,
+        options
+    );
 }
 
-// 文字エンコード.
-const _TEXT_ENCODE = new TextEncoder();
-
 // 対象Githubリポジトリ内のJavascriptをロード..
-// url 対象のURLLを設定します.
+// path 対象のパスを設定します.
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
 // 戻り値: HTTPレスポンスBodyが返却されます.
-const getGithubObjectToJs = function(url, token) {
-    return getGithubObject(url, token)
+const getGithubObjectToJs = function(path, token) {
+    return getGithubObject(path, token)
     .then((body) => {
-        return _TEXT_ENCODE.encode(body);
+        return body.toString();
     });
 }
 
@@ -338,8 +318,8 @@ const grequire = async function(
     if(!useString(currentPath)) {
         currentPath = _CURRENT_PATH
     }
-    // githubObject用のURLを取得.
-    const url = getGithubObjectToURL(
+    // githubObject用のPathを取得.
+    const gpath = getGithubObjectToPath(
         organization, repo, branch, currentPath, path);
     // noneCacheモードを取得.
     if(typeof(noneCache) != "boolean") {
@@ -352,7 +332,7 @@ const grequire = async function(
     if(!noneCache) {
         // 既にロードされた内容がキャッシュされているか.
         // ただしタイムアウトを経過していない場合.
-        const ret = cache[url];
+        const ret = cache[gpath];
         if(ret != undefined && ret[1] > Date.now()) {
             // キャッシュされている場合は返却(promise).
             return new Promise((resolve) => {
@@ -361,7 +341,7 @@ const grequire = async function(
         }
     }
     // gitのrepogitoryからデータを取得して実行.
-    const js = await getGithubObjectToJs(url, 
+    const js = await getGithubObjectToJs(path, 
         getOrganizationToken(organization));
     // jsを実行.
     const result = originRequire(url, js);
@@ -371,7 +351,7 @@ const grequire = async function(
         // キャッシュにセット.
         // [0] キャッシュデータ.
         // [1] キャッシュタイムアウト時間.
-        cache[url] = [result, Date.now() + _CACHE_TIMEOUT];
+        cache[gpath] = [result, Date.now() + _CACHE_TIMEOUT];
     }
 
     // 実行結果を返却.
@@ -400,11 +380,11 @@ const gcontents = function(
     if(!useString(currentPath)) {
         currentPath = _CURRENT_PATH
     }
-    // githubObject用のURLを取得.
-    const url = getGithubObjectToURL(
+    // githubObject用のPathを取得.
+    const gpath = getGithubObjectToPath(
         organization, repo, branch, currentPath, path);
     // githubからコンテンツ(binary)を返却.
-    return getGithubObject(url, 
+    return getGithubObject(gpath, 
         getOrganizationToken(organization));
 }
 

@@ -4,6 +4,12 @@
 (function() {
 'use strict'
 
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    frequire = global.require;
+}
+
 // httpsライブラリ.
 const https = frequire('https');
 
