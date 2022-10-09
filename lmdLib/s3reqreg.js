@@ -362,12 +362,15 @@ const init = function() {
     s3require.exports = {
         setOption: setOption
     };
-}
 
-/////////////////////////////////////////////////////
-// 外部定義.
-/////////////////////////////////////////////////////
-exports.setOption = setOption;
+    /////////////////////////////////////////////////////
+    // 外部定義.
+    /////////////////////////////////////////////////////
+    const m = s3require.exports;
+    for(let k in m) {
+        exports[k] = m[k];
+    }
+}
 
 // 初期化設定を行って `s3require`, `s3contents` をgrobalに登録.
 init();

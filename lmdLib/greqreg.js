@@ -248,17 +248,14 @@ const ORIGIN_REQUIRE_SCRIPT_HEADER =
 const ORIGIN_REQUIRE_SCRIPT_FOODER =
     "\n};\n})();";
 
-// 文字デコード.
-const _TEXT_DECODE = new TextDecoder();
-
 // originRequireを実施.
-// name load対象のNameを設定します.
+// path load対象のPathを設定します.
 // js load対象のjsソース・ファイルを設定します.
 // 戻り値: exportsに設定された内容が返却されます.
-const originRequire = function(name, js) {
+const originRequire = function(path, js) {
     // origin的なrequireスクリプトを生成.
     let srcScript = ORIGIN_REQUIRE_SCRIPT_HEADER
-        + _TEXT_DECODE.decode(js)
+        + js
         + ORIGIN_REQUIRE_SCRIPT_FOODER;
     
     try {
@@ -268,9 +265,9 @@ const originRequire = function(name, js) {
         let context = vm.createContext(memory);
     
         // スクリプト実行環境を生成.
-        let script = new vm.Script(srcScript, {filename: name});
+        let script = new vm.Script(srcScript, {filename: path});
         srcScript = null;
-        const executeJs = script.runInContext(context, {filename: name});
+        const executeJs = script.runInContext(context, {filename: path});
         script = null; context = null; memory = null;
     
         // スクリプトを実行して、exportsの条件を取得.
@@ -280,7 +277,7 @@ const originRequire = function(name, js) {
         // 実行結果を返却.
         return ret;
     } catch(e) {
-        console.error("## [ERROR] originRequire name: " + name);
+        console.error("## [ERROR] originRequire path: " + path);
         throw e;
     }
 }
@@ -341,10 +338,10 @@ const grequire = async function(
         }
     }
     // gitのrepogitoryからデータを取得して実行.
-    const js = await getGithubObjectToJs(path, 
+    const js = await getGithubObjectToJs(gpath, 
         getOrganizationToken(organization));
     // jsを実行.
-    const result = originRequire(url, js);
+    const result = originRequire(gpath, js);
 
     // キャッシュありで処理する場合.
     if(!noneCache) {
@@ -406,15 +403,15 @@ const init = function() {
         setOrganizationToken: setOrganizationToken,
         setOrganizationTokenToJson: setOrganizationTokenToJson
     }
-}
 
-/////////////////////////////////////////////////////
-// 外部定義.
-/////////////////////////////////////////////////////
-exports.setOptions = setOptions;
-exports.setDefault = setDefault;
-exports.setOrganizationToken = setOrganizationToken;
-exports.setOrganizationTokenToJson = setOrganizationTokenToJson;
+    /////////////////////////////////////////////////////
+    // 外部定義.
+    /////////////////////////////////////////////////////
+    const m = grequire.exports;
+    for(let k in m) {
+        exports[k] = m[k];
+    }
+}
 
 // 初期化設定を行って `grequire`, `gcontents` をgrobalに登録.
 init();
