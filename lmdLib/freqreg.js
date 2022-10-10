@@ -33,9 +33,14 @@ const trimPath = function(jsFlag, name) {
     if(name.startsWith("/")) {
         name = name.substring(1).trim();
     }
+    const checkName = name.toLowerCase(); 
+    // jsファイルを対象読み込みで、拡張子がjsでない場合.
     if(jsFlag == true &&
-        !name.toLowerCase().endsWith(".js")) {
-        name += ".js";
+        !checkName.endsWith(".js")) {
+        // ただし、json拡張子を除く.
+        if(!checkName.endsWith(".json")) {
+            name += ".js";
+        }
     }
     return name;
 }
@@ -134,6 +139,11 @@ const frequire = function(name) {
     if(js == null) {
         // 存在しない場合はrequireで取得.
         return srcRequire(name);
+    }
+    // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
+    // なしで返却.
+    if(jsName.toLowerCase().endsWith(".json")) {
+        return JSON.parse(js);
     }
     // キャッシュ情報から取得.
     let ret = _GBL_FILE_VALUE_CACHE[jsName];

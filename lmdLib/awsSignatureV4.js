@@ -16,7 +16,8 @@ if(frequire == undefined) {
 const crypto = frequire('crypto');
 
 // クレデンシャルを取得.
-// 戻り値: {accessKey: string, secretAccessKey: string, sessionToken}
+// 戻り値: {accessKey: string, secretAccessKey: string,
+//           sessionToken: string}
 //         accessKey アクセスキーが返却されます.
 //         secretAccessKey シークレットアクセスキーが返却されます.
 //         sessionToken セッショントークンが返却されます.
@@ -55,6 +56,16 @@ const createXAmzDate = function(date) {
         "00".substring(m.length) + m +
         "00".substring(s.length) + s +
         "Z";
+}
+
+// リクエストheaderに`x-amz-date`ヘッダを設定.
+// header 対象のリクエストヘッダを設定します.
+// date 対象の日付オブジェクトを設定します.
+const setHeaderToXAmzDate = function(header, date) {
+    if(date == undefined || date == null) {
+        date = new Date();
+    }
+    header["x-amz-date"] = createXAmzDate(date);
 }
 
 // リージョンを取得.
@@ -221,6 +232,7 @@ const signatureV4Final = function(
 /////////////////////////////////////////////////////
 exports.getCredential = getCredential;
 exports.createXAmzDate = createXAmzDate;
+exports.setHeaderToXAmzDate = setHeaderToXAmzDate;
 exports.signatureV4Step1 = signatureV4Step1;
 exports.signatureV4Step2 = signatureV4Step2;
 exports.signatureV4Final = signatureV4Final;

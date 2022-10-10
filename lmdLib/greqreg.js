@@ -340,6 +340,11 @@ const grequire = async function(
     // gitのrepogitoryからデータを取得して実行.
     const js = await getGithubObjectToJs(gpath, 
         getOrganizationToken(organization));
+    // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
+    // なしで返却.
+    if(path.toLowerCase().endsWith(".json")) {
+        return JSON.parse(js);
+    }
     // jsを実行.
     const result = originRequire(gpath, js);
 

@@ -228,7 +228,7 @@ const loadS3 = function(params) {
 const loadS3ByJs = function(params) {
     return loadS3(params)
     .then((body) => {
-        return body.toString('utf-8');
+        return body.toString();
     });
 }
 
@@ -322,6 +322,11 @@ const s3require = async function(path, curerntPath, noneCache) {
     }
     // S3からデータを取得して実行してキャッシュ化する.
     const js = await loadS3ByJs(s3params);
+    // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
+    // なしで返却.
+    if(path.toLowerCase().endsWith(".json")) {
+        return JSON.parse(js);
+    }
     // jsを実行.
     const result = originRequire(s3name, js);
 
