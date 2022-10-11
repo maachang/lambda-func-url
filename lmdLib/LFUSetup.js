@@ -692,7 +692,7 @@ const _main_handler = async function(event, context) {
                 resBody = Buffer.from(resBody).toString();
 
                 // jhtmlライブラリを取得.
-                const jhtml = _local_require("./jhtml.js");
+                const jhtml = _local_require("jhtml");
 
                 // jhtmlをjs変換.
                 resBody = jhtml.convertJhtmlToJs(resBody);
