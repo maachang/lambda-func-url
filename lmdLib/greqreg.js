@@ -88,7 +88,7 @@ const getGithubObjectToPath = function(
 // path 対象のpathを設定します.
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
 // 戻り値: HTTPレスポンスBodyが返却されます.
-const getGithubObject = function(path, token) {
+const getGithubObject = async function(path, token) {
     // デフォルトヘッダを設定.
     const header = {
         "X-Header": "X-Header"
@@ -98,17 +98,28 @@ const getGithubObject = function(path, token) {
     if(typeof(token) == "string") {
         header["Authorization"] = "token " + token;
     }
+    // レスポンス情報.
+    const response = {};
     // オプションを設定.
     const options = {
         method: "GET",
-        header: header
+        header: header,
+        response
     }
     // リクエスト問い合わせ.
-    return httpsClient.request(
+    const ret = await httpsClient.request(
         GITHUB_CONTENT_HOST,
         path,
         options
     );
+    // レスポンスステータスが400を超える場合.
+    if(response.status >= 400) {
+        throw new Error(
+            "error " + response.status +
+            " path: " + path);
+    }
+    // 正常終了.
+    return ret;
 }
 
 // 対象Githubリポジトリ内のJavascriptをロード..
@@ -398,8 +409,6 @@ const init = function() {
     // gcontentsをglobalに登録(書き換え禁止).
     Object.defineProperty(_g, "gcontents",
         {writable: false, value: gcontents});
-    //_g["grequire"] = grequire;
-    //_g["gcontents"] = gcontents;
 
     // exportsを登録.
     grequire.exports = {
