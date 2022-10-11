@@ -767,28 +767,27 @@ const _main_handler = async function(event, context) {
         }
 
     } catch(err) {
-
-        // ※ 「externalなfunctionを実行」では、以下の条件において、
-        //    今のところ明確なエラーハンドリングが難しい(面倒)なので、全て
-        //    httpStatus = 500 で処理している.
-        //     1. ファイルが存在しない 404.
-        //     2. アクセス権限がない 401.
-        //     3. 取得したJavascriptにエラーがある 500.
+        // エラーオブジェクトにHTTPステータスが付与されているかチェック.
+        let status = err.status;
+        if(status == undefined) {
+            // 設定されていない場合はエラー500.
+            status = 500;
+        }
 
         // エラーログ出力.
-        console.error("## error(500): " + err);
+        console.error("## error(" + status + "): " + err);
         console.error(err);
 
         // エラーの場合.
         const resBody =
-            "error 500: " + httpStatus.toMessage(500);
+            "error " + status + ": " + httpStatus.toMessage(status);
         // 新しいレスポンスヘッダを作成.
         resHeader = httpHeader.create();
         // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
         resHeader.put("content-type", getMimeType("text").type);
         // レスポンス返却.
         return returnResponse(
-            500,
+            status,
             resHeader.toHeaders(),
             resBody);
     }
