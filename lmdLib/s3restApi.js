@@ -370,6 +370,9 @@ const listObject = async function(
     return resultXmlToJson(xml);
 }
 
+/////////////////////////////////////////////////////
+// 外部定義.
+/////////////////////////////////////////////////////
 exports.putObject = putObject;
 exports.deleteObject = deleteObject;
 exports.getObject = getObject;

@@ -114,7 +114,8 @@ const getGithubObject = async function(path, token) {
     );
     // レスポンスステータスが400を超える場合.
     if(response.status >= 400) {
-        throw new Error(
+        // ステータス入りエラー返却.
+        throw httpsClient.httpError(response.status,
             "error " + response.status +
             " path: " + path);
     }

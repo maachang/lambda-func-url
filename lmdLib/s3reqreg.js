@@ -55,8 +55,8 @@ if(_g.s3require != undefined) {
 // nodejs library(vm).
 const vm = require('vm');
 
-// aws-sdk javascript V2.
-const AWS = require('aws-sdk');
+// s3restApi.
+const s3 = require("./s3restApi.js")
 
 // s3requireでloadした内容をCacheする.
 const _GBL_S3_VALUE_CACHE = {};
@@ -204,32 +204,25 @@ const getS3Path = function(path, currentPath) {
 }
 
 // 指定S3からオブジェクトを取得.
-// params pathをgetS3Path()で処理した内容を設定します.
+// params urlをgetS3Path()で処理した内容を設定します.
 // 戻り値: promiseが返却されます.
-const loadS3 = function(params) {
-    const s3 = new AWS.S3({
-        region: getRegion()
-    });
-    // S3オブジェクトを取得.
-    return s3.getObject(params).promise()
-    .then((data) => {
-        return data.Body;
-    })
-    .catch((e) => {
-        console.error("## [ERROR] loadS3 params: " +
-            JSON.stringify(params));
-        throw e;
-    });
+const loadS3 = async function(params) {
+    const response = {}
+    const ret = await s3.getObject(
+        response, getRegion(), params.Bucket, params.Key)
+    if(response.status >= 400) {
+        // ステータス入りエラー返却.
+        throw httpsClient.httpError(response.status,
+            "error load s3: " + response.status +
+            " " + JSON.stringify(params));
+    }
 }
 
 // 指定S3からJavascriptをロード.
-// params pathをgetS3Path()で処理した内容を設定します.
+// params urlをgetS3Path()で処理した内容を設定します.
 // 戻り値: promiseが返却されます.
-const loadS3ByJs = function(params) {
-    return loadS3(params)
-    .then((body) => {
-        return body.toString();
-    });
+const loadS3ByJs = async function(params) {
+    return (await loadS3(params)).toString();
 }
 
 // originRequire読み込みスクリプトheader.
@@ -276,7 +269,8 @@ const originRequire = function(name, js) {
         // 実行結果を返却.
         return ret;
     } catch(e) {
-        console.error("## [ERROR] originRequire name: " + name);
+        console.error(
+            "## [ERROR] originRequire name: " + name);
         throw e;
     }
 }
@@ -377,7 +371,8 @@ const init = function() {
     }
 }
 
-// 初期化設定を行って `s3require`, `s3contents` をgrobalに登録.
+// 初期化設定を行って `s3require`, `s3contents` を
+// grobalに登録.
 init();
 
 })(global);

@@ -31,10 +31,10 @@ const EMPTY_PAYLOAD_SHA256 =
 // クレデンシャルを取得.
 // 戻り値: {accessKey: string, secretAccessKey: string,
 //           sessionToken: string}
-//         accessKey アクセスキーが返却されます.
-//         secretAccessKey シークレットアクセスキーが返却されます.
-//         sessionToken セッショントークンが返却されます.
-//                      状況によっては空の場合があります.
+//         - accessKey アクセスキーが返却されます.
+//         - secretAccessKey シークレットアクセスキーが返却されます.
+//         - sessionToken セッショントークンが返却されます.
+//                        状況によっては空の場合があります.
 const getCredential = function() {
     return {
         accessKey: process.env["AWS_ACCESS_KEY_ID"]

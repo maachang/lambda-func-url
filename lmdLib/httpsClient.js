@@ -13,6 +13,27 @@ if(frequire == undefined) {
 // httpsライブラリ.
 const https = frequire('https');
 
+// httpStatus.js.
+const httpStatus = frequire("./httpStatus.js");
+
+// HTTPエラーを生成.
+// status HTTPステータスを設定します.
+// message HTTPメッセージを設定します.
+//         設定しない場合は HTTPステータスメッセージが返却されます.
+// 戻り値 Errorオブジェクトが返却されます.
+//        Error.status: HTTPステータスが設定されます.
+//        Error.message: メッセージが設定されます.
+const httpError = function(status, message) {
+    // メッセージが設定されていない場合.
+    if(typeof(message) != "string") {
+        message = httpStatus.toMessage(status);
+    }
+    const err = new Error(message);
+    err.status = status;
+    err.message = message;
+    return err;
+}
+
 // urlParamsを文字列に変換する.
 // urlParams 解析されたURLパラメータを設定します.
 // 戻り値: 変換された文字列が返却されます.
@@ -167,6 +188,7 @@ const request = function(host, path, options) {
 /////////////////////////////////////////////////////
 // 外部定義.
 /////////////////////////////////////////////////////
+exports.httpError = httpError;
 exports.convertUrlParams = convertUrlParams;
 exports.request = request;
 
