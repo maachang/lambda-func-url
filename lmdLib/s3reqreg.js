@@ -56,7 +56,7 @@ if(_g.s3require != undefined) {
 const vm = require('vm');
 
 // s3restApi.
-const s3 = require("./s3restApi.js")
+const s3 = require("./lib/s3restApi.js")
 
 // s3requireでloadした内容をCacheする.
 const _GBL_S3_VALUE_CACHE = {};

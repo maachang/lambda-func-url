@@ -92,9 +92,9 @@ exports.handler = function(event) {
 - s3 rest api呼び出しでのコールドスタート
   > Duration: 1169.33 ms Billed Duration: 1170 ms Memory Size: 128 MB Max Memory Used: 61 MB Init Duration: 140.79 ms
 
-aws-sdk(v2)の呼び出しをしないだけで、速度が 18%に短縮された.
+aws-sdk(v2)の呼び出しをしないだけで、速度が 約18%に短縮された.
 
-aws-sdk(v2)の呼び出しをしないだけで、速度が 75%に収まった.
+aws-sdk(v2)の呼び出しをしないだけで、メモリ利用量が 約75%に収まった.
 
 コールドスタート時に 1秒ならば、使う人数が少ない社内システムなら、この `関数URL`機能で「あまり問題ない」と思うし、何より運用コストの安さは、非常に魅力的であると言える.
 

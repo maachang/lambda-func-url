@@ -13,11 +13,15 @@
 // frequireが設定されていない場合.
 let frequire = global.frequire;
 if(frequire == undefined) {
-    frequire = require;
+    // frequire利用可能に設定.
+    require("../freqreg.js");
 }
 
 // httpsClient.
-const httpsClient = frequire("./httpsClient.js");
+const httpsClient = frequire("./lib/httpsClient.js");
+
+// signatureVersion4.
+const awsSigV4 = frequire("./lib/awsSignatureV4.js");
 
 // サービス名.
 const SERVICE = 's3';
@@ -71,9 +75,6 @@ const createRequestHeader = function(host) {
         "Host": host
     };
 }
-
-// signatureVersion4.
-const awsSigV4 = frequire("./awsSignatureV4.js");
 
 // AWSシグニチャーをセット.
 // region 対象のリージョンを設定します.

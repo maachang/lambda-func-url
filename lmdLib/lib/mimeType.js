@@ -8,7 +8,8 @@
 // frequireが設定されていない場合.
 let frequire = global.frequire;
 if(frequire == undefined) {
-    frequire = require;
+    // frequire利用可能に設定.
+    require("../freqreg.js");
 }
 
 // zlib.

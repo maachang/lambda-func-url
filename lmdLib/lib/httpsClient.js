@@ -7,14 +7,15 @@
 // frequireが設定されていない場合.
 let frequire = global.frequire;
 if(frequire == undefined) {
-    frequire = require;
+    // frequire利用可能に設定.
+    require("../freqreg.js");
 }
 
 // httpsライブラリ.
 const https = frequire('https');
 
 // httpStatus.js.
-const httpStatus = frequire("./httpStatus.js");
+const httpStatus = frequire("./lib/httpStatus.js");
 
 // HTTPエラーを生成.
 // status HTTPステータスを設定します.

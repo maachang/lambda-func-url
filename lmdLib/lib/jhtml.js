@@ -8,8 +8,12 @@
 // frequireが設定されていない場合.
 let frequire = global.frequire;
 if(frequire == undefined) {
-    frequire = require;
+    // frequire利用可能に設定.
+    require("../freqreg.js");
 }
+
+// nodejs library(vm).
+const vm = frequire('vm');
 
 //
 // jhtml組み込みタグ説明.
@@ -50,9 +54,6 @@ if(frequire == undefined) {
 // $response = httpHeader.js
 //   レスポンス用のHTTPヘッダが設定される.
 //
-
-// nodejs library(vm).
-const vm = frequire('vm');
 
 // jhtml出力メソッド名.
 const _OUT = "$out";

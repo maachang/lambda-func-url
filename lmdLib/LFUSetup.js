@@ -7,22 +7,14 @@
 // frequire利用可能に設定.
 require("./freqreg.js");
 
-// ローカルrequire.
-// name LFUSetup.jsと同じ位置にあるライブラリ名を設定します.
-// 戻り値: ローカルライブラリが返却されます.
-//@local=_local_require, name
-const _local_require = function(name) {
-    return require("./" + name + ".js");
-}
-
 // Lambdaに適した最低限のMimeType.
-const mime = _local_require("mimeType");
+const mime = require("./lib/mimeType.js");
 
 // HTTPステータス.
-const httpStatus = _local_require("httpStatus");
+const httpStatus = require("./lib/httpStatus.js");
 
 // HTTPヘッダ.
-const httpHeader = _local_require("httpHeader");
+const httpHeader = require("./lib/httpHeader.js");
 
 // エラー例外処理.
 // message　エラーメッセージを設定します.
@@ -692,7 +684,7 @@ const _main_handler = async function(event, context) {
                 resBody = Buffer.from(resBody).toString();
 
                 // jhtmlライブラリを取得.
-                const jhtml = _local_require("jhtml");
+                const jhtml = require("./lib/jhtml.js");
 
                 // jhtmlをjs変換.
                 resBody = jhtml.convertJhtmlToJs(resBody);
@@ -838,8 +830,7 @@ const start = function(event, filterFunc, originMime) {
     ////////////////////////////////////////
 
     // s3reqreg.
-    const s3reqreg = _local_require("s3reqreg");
-
+    const s3reqreg = require("./s3reqreg.js");
     // s3接続定義が存在する場合.
     if(env.s3Connect != undefined) {
         // 基本設定.
@@ -852,7 +843,7 @@ const start = function(event, filterFunc, originMime) {
     }
 
     // greqreg.
-    const greqreg = _local_require("greqreg");
+    const greqreg = require("./greqreg.js");
     // git接続定義が存在する場合.
     if(env.gitConnect != undefined) {
         // 標準接続先のgithub repogitory設定.

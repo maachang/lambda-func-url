@@ -9,14 +9,15 @@
 // frequireが設定されていない場合.
 let frequire = global.frequire;
 if(frequire == undefined) {
-    frequire = require;
+    // frequire利用可能に設定.
+    require("../freqreg.js");
 }
 
 // crypto.
 const crypto = frequire('crypto');
 
 // httpsClient.
-const httpsClient = frequire("./httpsClient.js");
+const httpsClient = frequire("./lib/httpsClient.js");
 
 // CredentialScope のアルゴリズム名.
 const ALGORITHM = "AWS4-HMAC-SHA256";
