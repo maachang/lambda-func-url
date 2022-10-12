@@ -1,10 +1,5 @@
 //////////////////////////////////////////////////////////
 // S3のKeyValue構造を利用したKeyValue情報管理を行います.
-//////////////////////////////////////////////////////////
-(function() {
-'use strict'
-
-//
 // AWSのS3は、基本的にKeyValue形式です.
 // 
 // AWSのS3は、容量単価として 1TByteで 約25$(東京リージョン)と非常に安い.
@@ -18,10 +13,22 @@
 //
 // ある程度使いやすいS3を使ったKeyValue形式のものを作成する事で、非常に
 // 安価なデータ管理が行える仕組みが作れる可能性があると言えます.
-//
+//////////////////////////////////////////////////////////
+(function() {
+'use strict'
 
-// aws-sdk javascript V2.
-const AWS = frequire('aws-sdk');
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("../../freqreg.js");
+}
+
+// s3client.
+const s3 = frequire("./lib/storage/s3client.js");
+
+// jsonb.
+const jsonb = frequire("./lib/storage/jsonb.js");
 
 // インデックスである `=Key=base64(value)` の条件を取得.
 const getIndexKeyValueName = function(key, value) {
@@ -91,28 +98,13 @@ const getS3Params = function(
     return {Bucket: bucketName, Key: keyName};
 }
 
-// 設定リージョンが存在しない場合`東京`を設定するようにする.
-const getRegion = function(options) {
-    if(options == undefined || options == null) {
-        // iptionsが無い場合は、東京リージョンを返却.
-        return "ap-northeast-1";
-    }
-    const region = options["region"];
-    if(region == undefined || region == null) {
-        // 指定が無い場合は東京をセット.
-        return "ap-northeast-1";
-    }
-    return region;
-}
-
-
 // オブジェクト生成処理.
-// bucket 対象のS3バケット名を設定します.
 // prefix 対象のプレフィックス名を設定します.
-// options 対象のオプション群を設定します.
-//         {region: string} S3先のリージョンを設定します.
-//         設定してない場合は 東京リージョンが設定されます.
-const create = function(bucket, prefix, options) {
+// region 対象のリージョンを設定します.
+// bucket 対象のS3バケット名を設定します.
+//        未設定(undefined)の場合、環境変数 "MAIN_S3_BUCKET" 
+//        で設定されてるバケット名が設定されます.
+const create = function(prefix, region, bucket) {
     // 基本バケット名.
     let bucketName = null;
 
@@ -126,27 +118,30 @@ const create = function(bucket, prefix, options) {
     (function() {
         // bucket名が設定されていない.
         if(typeof(bucket) != "string") {
-            throw new Error("S3 bucket name is not set.");
-        }
-        // bucket名の整形.
-        let flg = false;
-        bucket = bucket.trim();
-        // s3:// などの条件が先頭に存在する場合.
-        let p = bucket.indexOf("://");
-        if(p != -1) {
-            // 除外.
-            bucket = bucket.substring(p + 3);
-            flg = true;
-        }
-        // 終端の / が存在する場合.
-        if(bucket.endsWith("/")) {
-            // 除外.
-            bucket = bucket.substring(0, bucket.length - 1);
-            flg = true;
-        }
-        // 除外があった場合trimをかける.
-        if(flg) {
+            // バケットから空セット.
+            // (デフォルトのバケットアクセス.)
+            bucket = undefined;
+        } else {
+            // bucket名の整形.
+            let flg = false;
             bucket = bucket.trim();
+            // s3:// などの条件が先頭に存在する場合.
+            let p = bucket.indexOf("://");
+            if(p != -1) {
+                // 除外.
+                bucket = bucket.substring(p + 3);
+                flg = true;
+            }
+            // 終端の / が存在する場合.
+            if(bucket.endsWith("/")) {
+                // 除外.
+                bucket = bucket.substring(0, bucket.length - 1);
+                flg = true;
+            }
+            // 除外があった場合trimをかける.
+            if(flg) {
+                bucket = bucket.trim();
+            }
         }
 
         // prefixの整形.
@@ -178,9 +173,7 @@ const create = function(bucket, prefix, options) {
         bucketName = bucket;
         prefixName = prefix;
         // メンバー変数s3接続設定を行う.
-        s3Client = new AWS.S3({
-            region: getRegion(options)
-        });
+        s3Client = s3.create(region)
     })();
 
     // オブジェクト.
@@ -188,63 +181,33 @@ const create = function(bucket, prefix, options) {
 
     // put.
     // tableName 対象のテーブル名を設定します.
-    // keys インデックスキー {key: value ... } を設定します.
     // value 出力する内容(json)を設定します.
-    ret.put = function(tableName, keys, value) {
-        return exrequire("storage/jsonb.js")
-        .then((jsonb) => {
-            const params = getS3Params(
-                bucketName, prefixName, tableName, keys);
-            params.Body = jsonb.encode(value);
-            return s3Client.putObject(params).promise()
-            .catch((e) => {
-                console.error("## [ERROR] put bucket: " +
-                    JSON.stringify(params, null, "  "));
-                throw e;
-            });    
-        })
+    // keys インデックスキー {key: value ... } を設定します.
+    ret.put = async function(tableName, value, keys) {
+        const pm = getS3Params(
+            bucketName, prefixName, tableName, keys);
+        const body = jsonb.encode(value);
+        await s3Client.putObject(pm.Bucket, null, pm.Key, body);
     }
 
     // get.
     // tableName 対象のテーブル名を設定します.
     // keys インデックスキー {key: value ... } を設定します.
     // 戻り値: 検索結果(json)が返却されます.
-    ret.get = function(tableName, keys) {
-        const params = getS3Params(
+    ret.get = async function(tableName, keys) {
+        const pm = getS3Params(
             bucketName, prefixName, tableName, keys);
-        return s3Client.getObject(params)
-        .promise()
-        .catch(() => {
-            // エラー出力.
-            console.error("## [ERROR] get bucket: " +
-                JSON.stringify(params, null, "  "));
-            return null; 
-        })
-        .then((value) => {
-            return exrequire("storage/jsonb.js")
-            .then((jsonb) => {
-                return jsonb.decode(value);
-            });
-        });
+        const bin = await s3Client.getObject(pm.Bucket, null, pm.Key);
+        return jsonb.decode(bin);
     }
 
     // delete.
     // tableName 対象のテーブル名を設定します.
     // keys インデックスキー {key: value ... } を設定します.
-    // 戻り値: 削除に成功した場合 trueが返却されます.
-    ret.delete = function(tableName, keys) {
-        const params = getS3Params(
+    ret.delete = async function(tableName, keys) {
+        const pm = getS3Params(
             bucketName, prefixName, tableName, keys);
-        return s3Client.deleteObject(params)
-        .promise()
-        .catch(() => {
-            console.error("## [ERROR] remove bucket: " +
-                JSON.stringify(params, null, "  "));
-            return false;
-        })
-        .then(() => {
-            return true;
-        });
+        await s3Client.deleteObject(pm.Bucket, null, pm.Key);
     }
 
     return ret;

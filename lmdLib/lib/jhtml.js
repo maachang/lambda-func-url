@@ -1,6 +1,42 @@
 //////////////////////////////////////////////////////////
 // jhtml.js
 // javascript html template.
+//
+// - jhtml組み込みタグ説明.
+//   <% ... %>
+//     基本的な組み込みタグ情報
+//   <%= ... %>
+//     実行結果をhtmlとして出力する組み込みタグ.
+//   <%# ... %>
+//     コメント用の組み込みタグ.
+//   ${ ... }
+//     実行結果をテンプレートとして出力する組み込みタグ.
+//     ただ利用推奨としては、変数出力時に利用する.
+//
+// - jhtml組み込み機能.
+//   $out = function(string)
+//     stringをhtmlとして出力するFunction.
+//   $params = object
+//     getまたはpostで渡されたパラメータ情報.
+//     - getパラメータの場合 {key: value} のような形で格納される.
+//     - postパラメータの場合 `application/x-www-form-urlencoded`の
+//       場合は {key: value} のような形で格納される.
+//       また`application/json` の場合は、JSONで渡された内容が格納される.
+//   $request = object
+//     リクエストオブジェクトが設定される.
+//     ここにリクエストに対する各種リクエスト情報が設定されている.
+//     - method = string: HTTPメソッド.
+//     - protocol = string: HTTP/1.1 など.
+//     - path = string: urlパス.
+//     - header = httpHeader.js: リクエストHTTPヘッダ.
+//     - queryParams = object: URLパラメータ.
+//     - params = object: GET/POSTパラメータ.
+//     - body = object: POSTに対してのmimeTypeがForm送信かJSON以外の場合設定される.
+//     - isBinary = boolean: trueの場合、bodyがバイナリ情報として保持されている.
+//   $status = httpStatus.js
+//     レスポンス用のステータスが設定される.
+//   $response = httpHeader.js
+//     レスポンス用のHTTPヘッダが設定される.
 //////////////////////////////////////////////////////////
 (function(_g) {
 'use strict'
@@ -14,46 +50,6 @@ if(frequire == undefined) {
 
 // nodejs library(vm).
 const vm = frequire('vm');
-
-//
-// jhtml組み込みタグ説明.
-// <% ... %>
-//   基本的な組み込みタグ情報
-// <%= ... %>
-//   実行結果をhtmlとして出力する組み込みタグ.
-// <%# ... %>
-//   コメント用の組み込みタグ.
-// ${ ... }
-//   実行結果をテンプレートとして出力する組み込みタグ.
-//   ただ利用推奨としては、変数出力時に利用する.
-//
-
-//
-// jhtml組み込み機能.
-// $out = function(string)
-//   stringをhtmlとして出力するFunction.
-// $params = object
-//   getまたはpostで渡されたパラメータ情報.
-//   - getパラメータの場合 {key: value} のような形で格納される.
-//   - postパラメータの場合 `application/x-www-form-urlencoded`の
-//     場合は {key: value} のような形で格納される.
-//     また`application/json` の場合は、JSONで渡された内容が格納される.
-// $request = object
-//   リクエストオブジェクトが設定される.
-//   ここにリクエストに対する各種リクエスト情報が設定されている.
-//   - method = string: HTTPメソッド.
-//   - protocol = string: HTTP/1.1 など.
-//   - path = string: urlパス.
-//   - header = httpHeader.js: リクエストHTTPヘッダ.
-//   - queryParams = object: URLパラメータ.
-//   - params = object: GET/POSTパラメータ.
-//   - body = object: POSTに対してのmimeTypeがForm送信かJSON以外の場合設定される.
-//   - isBinary = boolean: trueの場合、bodyがバイナリ情報として保持されている.
-// $status = httpStatus.js
-//   レスポンス用のステータスが設定される.
-// $response = httpHeader.js
-//   レスポンス用のHTTPヘッダが設定される.
-//
 
 // jhtml出力メソッド名.
 const _OUT = "$out";

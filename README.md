@@ -237,6 +237,7 @@ LFU では、以下`環境変数` の設定が必要条件となっている.
   とリクエストに対する `currentPath` を設定.<br>
 
 - `S3_CONNECT`<br>
+  ※ この定義を行わないと `s3require` は利用できません.
   [環境変数]s3require, s3request時の接続設定.<br>
   　`MAIN_EXTERNAL`=`s3` の場合は、この条件は[必須]条件.<br>
   設定方法は<br>
@@ -247,6 +248,7 @@ LFU では、以下`環境変数` の設定が必要条件となっている.
     最後の "region" は、省略された場合、東京リージョン「ap-northeast-1」になる.<br>
 
 - `GIT_CONNECT`<br>
+  ※ この定義を行わないと `grequire` は利用できません.
   [環境変数]grequire, grequest時の接続設定.<br>
   　`MAIN_EXTERNAL`=`git` の場合は、この条件は[必須]条件.<br>
   設定方法は<br>

@@ -7,19 +7,24 @@
 (function() {
 'use strict'
 
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("../../freqreg.js");
+}
+
+// convert-binary.
+const convb = frequire("./lib/storage/convb.js");
+
 // エンコード処理.
 // value 変換対象のvalueを設定します.
+// 戻り値 Buffer情報が返却されます.
 const encode = function(value) {
     // バイナリを格納するArrayオブジェクトを生成.
     const bin = [];
-    // エンコード処理.
-    return exrequire("storage/convb.js")
-    .then((result) => {
-        // 変換結果をUint8Arrayに変換.
-        return Uint8Array.from(
-            result.encodeValue(bin, value)
-        );
-    });
+    convb.encodeValue(bin, value);
+    return Buffer.from(bin);
 }
 
 // デコード処理.
@@ -28,11 +33,7 @@ const encode = function(value) {
 const decode = function(bin) {
     // ポジションを取得.
     const pos = [0];
-    // デコード処理.
-    return exrequire("storage/convb.js")
-    .then((result) => {
-        return result.decodeValue(pos, bin);
-    });
+    return convb.decodeValue(pos, bin);
 }
 
 /////////////////////////////////////////////////////

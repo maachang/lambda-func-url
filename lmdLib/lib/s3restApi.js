@@ -31,6 +31,7 @@ const SERVICE = 's3';
 // 戻り値: リージョンが返却されます.
 const getRegion = function(region) {
     if(region == undefined || region == null) {
+        // 存在しない場合は東京リージョン.
         region = "ap-northeast-1";
     }
     return region;
@@ -114,10 +115,10 @@ const PUT_S3_MODE_STANDARD = "STANDARD";
 //        セットされます.
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
-// value 対象の追加情報を設定します.
+// body 対象のBody情報を設定します.
 // 戻り値: 対象のS3オブジェクトが返却されます.
 const putObject = async function(
-    response, region, bucket, key, value) {
+    response, region, bucket, key, body) {
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -127,11 +128,11 @@ const putObject = async function(
     // ヘッダを取得.
     const header = createRequestHeader(host);
     // 文字列の場合、バイナリ変換.
-    if(typeof(value) == "string") {
-        value = Buffer.from(value);
+    if(typeof(body) == "string") {
+        body = Buffer.from(body);
     }
     // ヘッダ追加.
-    header["content-length"] = "" + Buffer.byteLength(value);
+    header["content-length"] = "" + body.length;
     header["x-amz-storage-class"] = PUT_S3_MODE_STANDARD;
 
     // keyの整理.
@@ -143,13 +144,13 @@ const putObject = async function(
     key = bucket + key;
 
     // シグニチャーを生成.
-    setSignature(region, key, method, header, null, value);
+    setSignature(region, key, method, header, null, body);
 
     // HTTPSクライアント問い合わせ.
     return await httpsClient.request(host, key, {
         method: method,
         header: header,
-        body: value,
+        body: body,
         response: response
     });    
 }
@@ -202,7 +203,8 @@ const deleteObject = async function(response, region, bucket, key) {
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
 // 戻り値: 対象のS3オブジェクトが返却されます.
-const getObject = async function(response, region, bucket, key) {
+const getObject = async function(
+    response, region, bucket, key) {
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -227,6 +229,61 @@ const getObject = async function(response, region, bucket, key) {
         header: header,
         response: response
     });
+}
+
+// 指定S3オブジェクトのメタデータを取得.
+// response HTTPレスポンスヘッダ、ステータスが返却されます.
+//          {status: number, header: {}}
+//          - status レスポンスステータスが返却されます.
+//          - header レスポンスヘッダが返却されます.
+// region 対象のリージョンを設定します.
+//        指定しない場合は 東京リージョン(ap-northeast-1)が
+//        セットされます.
+// bucket 対象のS3バケット名を設定します.
+// key 対象のS3キー名を設定します.
+// 戻り値: メダデータが返却されます.
+//        {lastModified: string, size: number}
+//        - lastModified 最終更新日が返却されます.
+//        - size オブジェクトサイズが返却されます.
+const headObject = async function(
+    response, region, bucket, key) {
+    // リージョンを取得.
+    region = getRegion(region);
+    // ホスト名を取得.
+    const host = createGetS3Host(bucket, region);
+    // メソッド名.
+    const method = "HEAD";
+    // ヘッダを取得.
+    const header = createRequestHeader(host);
+
+    // keyの整理.
+    key = key.trim();
+    if(key.startsWith("/")) {
+        key = key.substring(1).trim();
+    }
+
+    // シグニチャーを生成.
+    setSignature(region, key, method, header);
+
+    // HTTPSクライアント問い合わせ.
+    await httpsClient.request(host, key, {
+        method: method,
+        header: header,
+        response: response
+    });
+
+    // レスポンスステータスが400以上の場合.
+    if(response.status >= 400) {
+        // 空返却.
+        return {};
+    }
+
+    // メタ情報を返却.
+    const h = result.header;
+    return {
+        "lastModified": h["last-modified"],
+        "size": parseInt(h["content-length"])
+    };
 }
 
 // xmlの１つの要素内容を取得.
@@ -332,9 +389,6 @@ const listObject = async function(
     // ヘッダを取得.
     const header = createRequestHeader(host);
 
-    // ヘッダ設定は不要. 
-    //header["x-amz-request-payer"] = "requester";
-
     // prefixの整理.
     prefix = prefix.trim();
     if(prefix.startsWith("/")) {
@@ -367,6 +421,12 @@ const listObject = async function(
         response: response
     })).toString();
 
+    // ステータスが400以上の場合.
+    if(response.status >= 400) {
+        // 空返却.
+        return [];
+    }
+
     // xmlのリスト情報をJSON変換.
     return resultXmlToJson(xml);
 }
@@ -377,6 +437,7 @@ const listObject = async function(
 exports.putObject = putObject;
 exports.deleteObject = deleteObject;
 exports.getObject = getObject;
+exports.headObject = headObject;
 exports.listObject = listObject;
 
 })();

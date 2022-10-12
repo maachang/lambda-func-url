@@ -624,7 +624,7 @@ var setRequestParameter = function(event, request) {
 //       exports.handler(event, _)の条件が設定されます.
 // context aws lambda `index.js` のmainメソッド
 //         exports.handler(_, context)の条件が設定されます.
-const _main_handler = async function(event, context) {
+const main_handler = async function(event, context) {
 
     // レスポンスステータス.
     const resState = httpStatus.create();
@@ -829,10 +829,12 @@ const start = function(event, filterFunc, originMime) {
     // 環境変数を取得して、それぞれを初期化する.
     ////////////////////////////////////////
 
-    // s3reqreg.
-    const s3reqreg = require("./s3reqreg.js");
     // s3接続定義が存在する場合.
+    // s3Connectが存在しない場合は `s3require` は使えない.
     if(env.s3Connect != undefined) {
+        // s3reqreg.
+        const s3reqreg = require("./s3reqreg.js");
+
         // 基本設定.
         s3reqreg.setOption({
             currentPath: env.s3Connect.requirePath,
@@ -842,10 +844,12 @@ const start = function(event, filterFunc, originMime) {
         });
     }
 
-    // greqreg.
-    const greqreg = require("./greqreg.js");
     // git接続定義が存在する場合.
+    // s3Connectが存在しない場合は `grequire` は使えない.
     if(env.gitConnect != undefined) {
+        // greqreg.
+        const greqreg = require("./greqreg.js");
+
         // 標準接続先のgithub repogitory設定.
         greqreg.setDefault(
             env.gitConnect.organization,
@@ -882,7 +886,7 @@ const start = function(event, filterFunc, originMime) {
     _g.ENV = env;
 
     // main_handlerを返却.
-    return _main_handler;
+    return main_handler;
 }
 
 /////////////////////////////////////////////////////

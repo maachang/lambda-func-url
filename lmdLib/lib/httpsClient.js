@@ -163,7 +163,8 @@ const request = function(host, path, options) {
                         // レスポンス情報を受け付ける.
                         if(response != undefined) {
                             response.status = res.statusCode;
-                            response.header = res.headers;
+                            response.header = convertHeaderToLowerKey(
+                                res.headers);
                         }
                         resolve(Buffer.concat(body));
                     });
