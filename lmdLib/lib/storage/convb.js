@@ -273,18 +273,15 @@ const decodeFloat = function(pos, bin) {
 // 外部定義.
 exports.decodeFloat = decodeFloat;
 
-// long型の下位32bit計算係数.
-const _LONG_BY_LOW32 = 0xfffffffff;
-
-// long型の上位32bit計算係数.
-const _LONG_BY_HIGH32 = 4294967296;    
+// long型の32bit計算係数.
+const _LONG_BY32 = 0x100000000;    
 
 // long(64bit整数)のエンコード.
 // out バイナリをセットするArrayを設定します.
 // value long(64bit整数)を設定します.
 const encodeLong = function(out, value) {
-    const low = value & _LONG_BY_LOW32;
-    const high = (value / _LONG_BY_HIGH32)|0;
+    const high = (value / _LONG_BY32)|0;
+    const low = (((value / _LONG_BY32) - high) * _LONG_BY32)|0;
     let p = out.length;
     out[p ++] = low & 0x0ff;
     out[p ++] = (low & 0x0ff00) >> 8;
@@ -315,7 +312,7 @@ const decodeLong = function(pos, bin) {
         ((bin[p ++] & 0x0ff) << 16) |
         ((bin[p ++] & 0x0ff) << 24));
     pos[0] = p;
-    return (high * _LONG_BY_HIGH32) + low;
+    return (high * _LONG_BY32) + (low + _LONG_BY32);
 }
 // 外部定義.
 exports.decodeLong = decodeLong;
@@ -400,13 +397,10 @@ const decodeUint8 = function(pos, bin) {
 exports.decodeUint8 = decodeUint8;
 
 // 文字エンコード.
-const _TEXT_ENCODE = new TextEncoder();
-
-// 文字エンコード.
 // out バイナリをセットするArrayを設定します.
 // value 文字列を設定します.
 const encodeString = function(out, value) {
-    const bin = _TEXT_ENCODE.encode(value);
+    const bin = Buffer.from(value);
     const len = bin.length;
     out[out.length] = len & 0x0ff;
     out[out.length] = (len & 0x0ff00) >> 8;
@@ -420,9 +414,6 @@ const encodeString = function(out, value) {
 exports.encodeString = encodeString;
 
 // 文字デコード.
-const _TEXT_DECODE = new TextDecoder();
-
-// 文字デコード.
 // pos Array[number] バイナリのポジションを設定します.
 //                   またこの処理が終わった場合、バイナリのポジションは
 //                   更新されます.
@@ -434,13 +425,12 @@ const decodeString = function(pos, bin) {
         (bin[p+1] << 8) |
         (bin[p+2] << 16));
     p += 3;
-    const b = new Uint8Array(len);
+    const b = Buffer.alloc(len);
     for(let i = 0; i < len; i ++) {
         b[i] = bin[p++];
     }
     pos[0] = p;
-    const ret = _TEXT_DECODE.decode(b);
-    return ret;
+    return b.toString()
 }
 // 外部定義.
 exports.decodeString = decodeString;
@@ -653,28 +643,28 @@ const encodeValue = function(out, value) {
     // null or undefined.
     if(isNull(value)) {
         out[out.length] = TYPE_NULL;
-    // number.
+    // number型.
     } else if(isNumber(value)) {
         // 最適な数字情報でエンコード.
         encodeNumberAndType(out, value);
-    // string.
+    // string型.
     } else if(isString(value)) {
         out[out.length] = TYPE_STRING;
         encodeString(out, value);
-    // date.
+    // date型.
     } else if(isDate(value)) {
         out[out.length] = TYPE_DATE;
         // long値の値をセット.
         encodeLong(out, value.getTime());
-    // boolean.
+    // boolean型.
     } else if(isBoolean(value)) {
         out[out.length] = TYPE_BOOLEAN;
         encodeBoolean(out, value);
-    // array.
+    // array型.
     } else if(isArray(value)) {
         out[out.length] = TYPE_ARRAY;
         encodeArray(out, value);
-    // object.
+    // object型.
     } else if(isObject(value)) {
         out[out.length] = TYPE_OBJECT;
         encodeObject(out, value);
@@ -706,14 +696,18 @@ const decodeValue = function(pos, bin) {
         return decodeStringOrKeyByType(pos, type, bin);
     // date型.
     } else if(type == TYPE_DATE) {
-        return new Date(decodeLong(pos, bin));
+        let tm = decodeLong(pos, bin);
+        return new Date(tm);
     // boolean型.
     } else if(type == TYPE_BOOLEAN) {
         return decodeBoolean(pos, bin);
+    // array型.
     } else if(type == TYPE_ARRAY) {
         return decodeArray(pos, bin);
+    // object型.
     } else if(type == TYPE_OBJECT) {
         return decodeObject(pos, bin);
+    // 当てはまらない情報.
     } else {
         throw new Error(
             "Conversion type mismatch: 0x" +

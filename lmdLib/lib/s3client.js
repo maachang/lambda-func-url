@@ -8,7 +8,8 @@
 let frequire = global.frequire;
 if(frequire == undefined) {
     // frequire利用可能に設定.
-    require("../../freqreg.js");
+    require("../freqreg.js");
+    frequire = global.frequire;
 }
 
 // s3restApi.
@@ -43,143 +44,123 @@ const create = function(region) {
     const ret = {};
 
     // 条件を指定してS3Bucket+Prefixのリスト情報を取得.
-    // bucket 対象のbucket名を設定します.
-    // prefix 対象のprefix名を設定します.
+    // params {Bucket: string, Prefix: string}
+    //         - Bucket 対象のbucket名を設定します.
+    //         - Prefix 対象のprefix名を設定します.
     // 戻り値: リスト情報が返却されます.
     //         [{key: string, lastModified: string, size: number} ... ]
     //         - key: オブジェクト名.
     //         - lastModified: 最終更新時間(yyyy/MM/ddTHH:mm:ssZ).
     //         - size: ファイルサイズ.
-    ret.getList = async function(bucket, prefix) {
+    ret.getList = async function(params) {
         // バケット名を取得.
-        bucket = getBucketName(bucket);
-        // bucketとprefix名の分離.
-        const response = {};
+        const bucket = getBucketName(params.Bucket);
         // リスト取得.
+        const response = {};
         const ret = await s3.listObject(
-            response, region, bucket, prefix);
+            response, region, bucket, params.Prefix);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
             console.error("## [ERROR: " + response.status +
                 "]getList bucket: " + bucket +
-                " prefix: " + prefix);
+                " prefix: " + params.Prefix);
             throw e;
         }
         return ret;
     }
 
 
-    // 条件を指定してS3Bucket+Prefixのメタ情報を取得.
-    // bucket 対象のbucket名を設定します.
-    // prefix 対象のprefix名を設定します.
-    // key 対象のkey名を設定します.
+    // 条件を指定してS3Bucket+Keyのメタ情報を取得.
+    // params {Bucket: string, Key: string}
+    //         - Bucket 対象のbucket名を設定します.
+    //         - Key 対象のkey名を設定します.
     // 戻り値: 処理結果のpromiseが返却されます.
-    ret.headObject = async function(bucket, prefix, key) {
+    ret.headObject = async function(params) {
         // バケット名を取得.
-        bucket = getBucketName(bucket);
-        // prefixとkeyを統合.
-        const originKey = key;
-        if(prefix != null && prefix != undefined) {
-            key = prefix + "/" + key;
-        }
-        const response = {};
+        const bucket = getBucketName(params.Bucket);
         // オブジェクト取得.
+        const response = {};
         const ret = await s3.headObject(
-            response, region, bucket, key);
+            response, region, bucket, params.Key);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
             console.error("## [ERROR: " + response.status +
-                "]headObject bucket: " + bucket + " prefix: " +
-                prefix + " key: " + originKey);
+                "]headObject bucket: " + bucket + " key: " +
+                params.Key);
             throw e;
         }
         return ret;
     };
 
-    // 条件を指定してS3Bucket+PrefixのKey情報を取得.
-    // bucket 対象のbucket名を設定します.
-    // prefix 対象のprefix名を設定します.
-    // key 対象のkey名を設定します.
+    // 条件を指定してS3Bucket+Key情報を取得.
+    // params {Bucket: string, Key: string}
+    //         - Bucket 対象のbucket名を設定します.
+    //         - Key 対象のkey名を設定します.
     // 戻り値: 処理結果のpromiseが返却されます.
-    ret.getObject = async function(bucket, prefix, key) {
+    ret.getObject = async function(params) {
         // バケット名を取得.
-        bucket = getBucketName(bucket);
-        // prefixとkeyを統合.
-        const originKey = key;
-        if(prefix != null && prefix != undefined) {
-            key = prefix + "/" + key;
-        }
-        const response = {};
+        const bucket = getBucketName(params.Bucket);
         // オブジェクト取得.
+        const response = {};
         const ret = await s3.getObject(
-            response, region, bucket, key);
+            response, region, bucket, params.Key);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
             console.error("## [ERROR: " + response.status +
-                "]getObject bucket: " + bucket + " prefix: " +
-                prefix + " key: " + originKey);
+                "]getObject bucket: " + bucket + " key: " +
+                params.Key);
             throw e;
         }
         return ret;
     };
 
-    // 条件を指定してS3Bucket+PrefixのKey情報を文字列で取得.
-    // bucket 対象のbucket名を設定します.
-    // prefix 対象のprefix名を設定します.
-    // key 対象のkey名を設定します.
+    // 条件を指定してS3Bucket+Key情報を文字列で取得.
+    // params {Bucket: string, Key: string}
+    //         - Bucket 対象のbucket名を設定します.
+    //         - Key 対象のkey名を設定します.
     // 戻り値: 処理結果のpromiseが返却されます.
-    ret.getString = async function(bucket, prefix, key) {
-        return (await ret.getObject(bucket, prefix, key))
+    ret.getString = async function(params) {
+        return (await ret.getObject(params))
             .toString();
     }
 
-    // 条件を指定してS3Bucket+Prefix+Key情報にBodyをセット.
-    // bucket 対象のbucket名を設定します.
-    // prefix 対象のprefix名を設定します.
-    // key 対象のkey名を設定します.
-    // body 対象のbody情報を設定します.
-    ret.putObject = async function(bucket, prefix, key, body) {
+    // 条件を指定してS3Bucket+Key情報にBodyをセット.
+    // params {Bucket: string, Key: string, Body: string or Buffer}
+    //         - Bucket 対象のbucket名を設定します.
+    //         - Key 対象のkey名を設定します.
+    //         - Body 対象のbody情報を設定します.
+    ret.putObject = async function(params) {
         // バケット名を取得.
-        bucket = getBucketName(bucket);
-        // prefixとkeyを統合.
-        const originKey = key;
-        if(prefix != null && prefix != undefined) {
-            key = prefix + "/" + key;
-        }
-        const response = {};
+        const bucket = getBucketName(params.Bucket);
         // bodyをput.
+        const response = {};
         await s3.putObject(
-            response, region, bucket, key, body);
+            response, region, bucket, params.Key, params.Body);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
             console.error("## [ERROR: " + response.status +
-                "]putObject bucket: " + bucket + " prefix: " +
-                prefix + " key: " + originKey);
+                "]putObject bucket: " + bucket + " key: " +
+                params.Key);
             throw e;
         }
     }
 
-    // 条件を指定してS3Bucket+Prefix+Key情報を削除.
-    // bucket 対象のbucket名を設定します.
-    // prefix 対象のprefix名を設定します.
-    // key 対象のkey名を設定します.
-    ret.deleteObject = async function(bucket, prefix, key) {
+    // 条件を指定してS3Bucket+Key情報を削除.
+    // params {Bucket: string, Key: string}
+    //         - Bucket 対象のbucket名を設定します.
+    //         - Key 対象のkey名を設定します.
+    ret.deleteObject = async function(params) {
         // バケット名を取得.
-        bucket = getBucketName(bucket);
-        // prefixとkeyを統合.
-        const originKey = key;
-        if(prefix != null && prefix != undefined) {
-            key = prefix + "/" + key;
-        }
+        const bucket = getBucketName(params.Bucket);
+        // オブジェクト取得.
         const response = {};
-        // オブジェクト削除.
-        await s3.deleteObject(
-            response, region, bucket, key);
+        const ret = await s3.getObject(
+            response, region, bucket, params.Key);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
             console.error("## [ERROR: " + response.status +
-                "]deleteObject bucket: " + bucket + " prefix: " +
-                prefix + " key: " + originKey);
+                "]deleteObject bucket: " + bucket + " key: " +
+                params.Key);
             throw e;
         }
     }

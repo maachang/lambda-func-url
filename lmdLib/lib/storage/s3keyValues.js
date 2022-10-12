@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 // S3のKeyValue構造を利用したKeyValue情報管理を行います.
 // AWSのS3は、基本的にKeyValue形式です.
 // 
@@ -13,7 +13,7 @@
 //
 // ある程度使いやすいS3を使ったKeyValue形式のものを作成する事で、非常に
 // 安価なデータ管理が行える仕組みが作れる可能性があると言えます.
-//////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 (function() {
 'use strict'
 
@@ -22,10 +22,11 @@ let frequire = global.frequire;
 if(frequire == undefined) {
     // frequire利用可能に設定.
     require("../../freqreg.js");
+    frequire = global.frequire;
 }
 
-// s3client.
-const s3 = frequire("./lib/storage/s3client.js");
+// s3restApi.
+const s3 = frequire("./lib/s3restApi.js");
 
 // jsonb.
 const jsonb = frequire("./lib/storage/jsonb.js");
@@ -100,82 +101,81 @@ const getS3Params = function(
 
 // オブジェクト生成処理.
 // prefix 対象のプレフィックス名を設定します.
-// region 対象のリージョンを設定します.
+//        未設定(undefined)の場合、prefixは""(空)となります.
 // bucket 対象のS3バケット名を設定します.
 //        未設定(undefined)の場合、環境変数 "MAIN_S3_BUCKET" 
 //        で設定されてるバケット名が設定されます.
-const create = function(prefix, region, bucket) {
+// region 対象のリージョンを設定します.
+//        未設定(undefined)の場合東京リージョン(ap-northeast-1)
+//        が設定されます.
+const create = function(prefix, bucket, region) {
     // 基本バケット名.
     let bucketName = null;
 
     // 基本プレフィックス名.
     let prefixName = null;
 
-    // S3Client.
-    let s3Client = null;
-
-    // 初期設定.
-    (function() {
-        // bucket名が設定されていない.
-        if(typeof(bucket) != "string") {
-            // バケットから空セット.
-            // (デフォルトのバケットアクセス.)
-            bucket = undefined;
-        } else {
-            // bucket名の整形.
-            let flg = false;
+    // bucket名が設定されていない.
+    if(typeof(bucket) != "string") {
+        // バケットから空セット.
+        // 環境変数から取得.
+        bucket = process.env["MAIN_S3_BUCKET"];
+        if(bucket == null || bucket == undefined ||
+            bucket.length == 0) {
+            throw new Error("Bucket name is empty.");
+        }
+    } else {
+        // bucket名の整形.
+        let flg = false;
+        bucket = bucket.trim();
+        // s3:// などの条件が先頭に存在する場合.
+        let p = bucket.indexOf("://");
+        if(p != -1) {
+            // 除外.
+            bucket = bucket.substring(p + 3);
+            flg = true;
+        }
+        // 終端の / が存在する場合.
+        if(bucket.endsWith("/")) {
+            // 除外.
+            bucket = bucket.substring(0, bucket.length - 1);
+            flg = true;
+        }
+        // 除外があった場合trimをかける.
+        if(flg) {
             bucket = bucket.trim();
-            // s3:// などの条件が先頭に存在する場合.
-            let p = bucket.indexOf("://");
-            if(p != -1) {
-                // 除外.
-                bucket = bucket.substring(p + 3);
-                flg = true;
-            }
-            // 終端の / が存在する場合.
-            if(bucket.endsWith("/")) {
-                // 除外.
-                bucket = bucket.substring(0, bucket.length - 1);
-                flg = true;
-            }
-            // 除外があった場合trimをかける.
-            if(flg) {
-                bucket = bucket.trim();
-            }
         }
+    }
 
+    // prefixの整形.
+    if(typeof(prefix) != "string") {
+        // 設定されていない場合.
+        prefix = undefined;
+    } else {
         // prefixの整形.
-        if(typeof(prefix) != "string") {
-            // 設定されていない場合.
-            prefix = undefined;
-        }  else {
-            // prefixの整形.
-            flg = false;
-            prefix = prefix.trim();
-            // 開始に / が存在する場合.
-            if(prefix.startsWith("/")) {
-                // 除外.
-                prefix = prefix.substring(1);
-                flg = true;
-            }
-            // 終端に / が存在する場合.
-            if(prefix.endsWith("/")) {
-                // 除外.
-                prefix = prefix.substring(0, prefix.length - 1);
-                flg = true;
-            }
-            // 除外があった場合trimをかける.
-            if(flg) {
-                prefix = prefix.trim();
-            }
+        flg = false;
+        prefix = prefix.trim();
+        // 開始に / が存在する場合.
+        if(prefix.startsWith("/")) {
+            // 除外.
+            prefix = prefix.substring(1);
+            flg = true;
         }
-        // メンバー変数条件セット.
-        bucketName = bucket;
-        prefixName = prefix;
-        // メンバー変数s3接続設定を行う.
-        s3Client = s3.create(region)
-    })();
-
+        // 終端に / が存在する場合.
+        if(prefix.endsWith("/")) {
+            // 除外.
+            prefix = prefix.substring(0, prefix.length - 1);
+            flg = true;
+        }
+        // 除外があった場合trimをかける.
+        if(flg) {
+            prefix = prefix.trim();
+        }
+    }
+    // メンバー変数条件セット.
+    bucketName = bucket;
+    prefixName = prefix;
+    
     // オブジェクト.
     const ret = {};
 
@@ -183,31 +183,43 @@ const create = function(prefix, region, bucket) {
     // tableName 対象のテーブル名を設定します.
     // value 出力する内容(json)を設定します.
     // keys インデックスキー {key: value ... } を設定します.
+    // 戻り値: trueの場合設定に成功しました.
     ret.put = async function(tableName, value, keys) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, keys);
         const body = jsonb.encode(value);
-        await s3Client.putObject(pm.Bucket, null, pm.Key, body);
+        const response = {};
+        await s3.putObject(
+            response, region, pm.Bucket, pm.Key, body);
+        return response.status <= 299;
     }
 
     // get.
     // tableName 対象のテーブル名を設定します.
     // keys インデックスキー {key: value ... } を設定します.
     // 戻り値: 検索結果(json)が返却されます.
+    //         情報取得に失敗した場合は null が返却されます.
     ret.get = async function(tableName, keys) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, keys);
-        const bin = await s3Client.getObject(pm.Bucket, null, pm.Key);
-        return jsonb.decode(bin);
+        const response = {};
+        const bin = await s3.getObject(
+            response, region, pm.Bucket, pm.Key);
+        return response.status >= 400 ?
+            null: jsonb.decode(bin);
     }
 
     // delete.
     // tableName 対象のテーブル名を設定します.
     // keys インデックスキー {key: value ... } を設定します.
+    // 戻り値: trueの場合削除に成功しました.
     ret.delete = async function(tableName, keys) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, keys);
-        await s3Client.deleteObject(pm.Bucket, null, pm.Key);
+        const response = {};
+        await s3.deleteObject(
+            response, region, pm.Bucket, pm.Key);
+        return response.status <= 299;
     }
 
     return ret;
