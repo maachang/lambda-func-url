@@ -64,7 +64,6 @@ const create = function(region) {
             throw new Error("[ERROR: " + response.status +
                 "]getList bucket: " + bucket +
                 " prefix: " + params.Prefix);
-            throw e;
         }
         return ret;
     }
@@ -74,7 +73,9 @@ const create = function(region) {
     // params {Bucket: string, Key: string}
     //         - Bucket 対象のbucket名を設定します.
     //         - Key 対象のkey名を設定します.
-    // 戻り値: 処理結果のpromiseが返却されます.
+    // 戻り値: {lastModified: string, size: number}
+    //         - lastModified: 最終更新時間(yyyy/MM/ddTHH:mm:ssZ).
+    //         - size: ファイルサイズ.
     ret.headObject = async function(params) {
         // バケット名を取得.
         const bucket = getBucketName(params.Bucket);
@@ -87,7 +88,6 @@ const create = function(region) {
             throw new Error("[ERROR: " + response.status +
                 "]headObject bucket: " + bucket + " key: " +
                 params.Key);
-            throw e;
         }
         return ret;
     };
@@ -96,7 +96,7 @@ const create = function(region) {
     // params {Bucket: string, Key: string}
     //         - Bucket 対象のbucket名を設定します.
     //         - Key 対象のkey名を設定します.
-    // 戻り値: 処理結果のpromiseが返却されます.
+    // 戻り値: 処理結果のBufferが返却されます.
     ret.getObject = async function(params) {
         // バケット名を取得.
         const bucket = getBucketName(params.Bucket);
@@ -109,7 +109,6 @@ const create = function(region) {
             throw new Error("[ERROR: " + response.status +
                 "]getObject bucket: " + bucket + " key: " +
                 params.Key);
-            throw e;
         }
         return ret;
     };
@@ -118,7 +117,7 @@ const create = function(region) {
     // params {Bucket: string, Key: string}
     //         - Bucket 対象のbucket名を設定します.
     //         - Key 対象のkey名を設定します.
-    // 戻り値: 処理結果のpromiseが返却されます.
+    // 戻り値: 処理結果が文字列で返却されます.
     ret.getString = async function(params) {
         return (await ret.getObject(params))
             .toString();
@@ -129,6 +128,7 @@ const create = function(region) {
     //         - Bucket 対象のbucket名を設定します.
     //         - Key 対象のkey名を設定します.
     //         - Body 対象のbody情報を設定します.
+    // 戻り値: trueの場合、正常に設定されました.
     ret.putObject = async function(params) {
         // バケット名を取得.
         const bucket = getBucketName(params.Bucket);
@@ -142,12 +142,14 @@ const create = function(region) {
                 "]putObject bucket: " + bucket + " key: " +
                 params.Key);
         }
+        return response.status <= 299;
     }
 
     // 条件を指定してS3Bucket+Key情報を削除.
     // params {Bucket: string, Key: string}
     //         - Bucket 対象のbucket名を設定します.
     //         - Key 対象のkey名を設定します.
+    // 戻り値: trueの場合、正常に設定されました.
     ret.deleteObject = async function(params) {
         // バケット名を取得.
         const bucket = getBucketName(params.Bucket);
@@ -160,9 +162,10 @@ const create = function(region) {
             throw new Error("[ERROR: " + response.status +
                 "]deleteObject bucket: " + bucket + " key: " +
                 params.Key);
-            throw e;
         }
+        return response.status <= 299;
     }
+
     return ret;
 }
 

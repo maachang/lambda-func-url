@@ -173,18 +173,35 @@ const resultXmlToJson = function(xml) {
     return ret;
 }
 
+// bucket内容をencodeURIComponentする.
+// bucket 対象のbucketを設定します.
+// 戻り値: encodeURIComponent変換されたパスが返却されます.
+const encodeURIToBucket = function(bucket) {
+    bucket = bucket.trim();
+    // bucket内に "%" すでにURLEncodeしている場合.
+    if(bucket.indexOf("%") != -1) {
+        // 処理しない.
+        return bucket;
+    }
+    return encodeURIComponent(bucket);
+}
+
 // path内容をencodeURIComponentする.
 // path 対象のパスを設定します.
 // 戻り値: encodeURIComponent変換されたパスが返却されます.
 const encodeURIToPath = function(path) {
     path = path.trim();
-    if(path.length == 0) {
+    // パスが空かパス内に "%" すでにURLEncodeしている場合.
+    if(path.length == 0 || path.indexOf("%") != -1) {
+        // 処理しない.
         return path;
     }
     let n, ret;
     const list = path.split("/");
     const len = list.length;
     ret = "";
+    // パスの区切り文字[/]を除外して、
+    // パス名だけをURLEncodeする.
     for(let i = 0; i < len; i ++) {
         n = list[i].trim();
         if(n.length == 0) {
@@ -227,7 +244,7 @@ const putObject = async function(
         throw new Error("body does not exist.");
     }
     // bucket, keyをencodeURL.
-    bucket = encodeURIComponent(bucket);
+    bucket = encodeURIToBucket(bucket);
     key = encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
@@ -276,7 +293,7 @@ const deleteObject = async function(
         throw new Error("key does not exist.");
     }
     // bucket, keyをencodeURL.
-    bucket = encodeURIComponent(bucket);
+    bucket = encodeURIToBucket(bucket);
     key = encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
@@ -321,7 +338,7 @@ const getObject = async function(
         throw new Error("key does not exist.");
     }
     // bucket, keyをencodeURL.
-    bucket = encodeURIComponent(bucket);
+    bucket = encodeURIToBucket(bucket);
     key = encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
@@ -369,7 +386,7 @@ const headObject = async function(
         throw new Error("key does not exist.");
     }
     // bucket, keyをencodeURL.
-    bucket = encodeURIComponent(bucket);
+    bucket = encodeURIToBucket(bucket);
     key = encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
@@ -434,7 +451,7 @@ const listObject = async function(
         throw new Error("prefix does not exist.");
     }
     // bucket, prefixをencodeURL.
-    bucket = encodeURIComponent(bucket);
+    bucket = encodeURIToBucket(bucket);
     prefix = encodeURIToPath(prefix);
     // リージョンを取得.
     region = getRegion(region);

@@ -53,7 +53,7 @@ const getIndexKeyValueName = function(key, value) {
         // 文字列が存在する場合.
         if(value.length > 0) {
             // base64変換.
-            value = Buffer.from("" + value).toString('base64');
+            value = Buffer.from(value).toString('base64');
             const len = value.length;
             // base64の最後の`=`を除外.
             for(var i = len - 1; i >= 0; i --) {
@@ -93,8 +93,6 @@ const getS3Params = function(
     if(count == 0) {
         throw new Error("No index key is set");
     }
-    // keysをソート.
-    list.sort();
     // 基本プレフィックスが存在しない.
     let keyName = null;
     if(prefixName == undefined || prefixName == null) {
@@ -104,10 +102,13 @@ const getS3Params = function(
         keyName = prefixName + "/" + tableName;
     }
     // １つのKeyに直結.
+    list.sort();
     const len = list.length;
     for(let i = 0; i < len; i ++) {
         keyName += "/" + list[i];
     }
+    // ファイル拡張子を設定.
+    keyName += ".s3kvs";
     // BucketとKeyを登録.
     return {Bucket: bucketName, Key: keyName};
 }
