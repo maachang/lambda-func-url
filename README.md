@@ -120,7 +120,7 @@ LFUは、昨今導入された `関数URL`を利用して、AWSのLambdaで管�
 
 ## LFUを利用したaws Lambda側の実装について
 
-LFUのAWS Lambda側の実装は非常にシンプル具体的には `lmdLib/index.js` で、作成時のAWS Lambda関数定義に対して以下のように実装する事で対応できる.
+LFUのAWS Lambda側の実装は非常にシンプル具体的には `src/index.js` で、作成時のAWS Lambda関数定義に対して以下のように実装する事で対応できる.
 
 ### index.js
 
@@ -160,7 +160,7 @@ const originMime = undefined;
 })();
 ~~~
 
-これをLambdaが自動生成した `index.js` を含む、[lmdLib](https://github.com/maachang/lambda-func-url/tree/main/lmdLib)ディレクトリ配下のjsファイル全てをLambda側の `/` パスに全て配置して `再デプロイ` することで実行環境の構築は完了となる.
+これをLambdaが自動生成した `index.js` を含む、[src](https://github.com/maachang/lambda-func-url/tree/main/src)ディレクトリ配下の全jsファイルLambda側の `/` パス以下に配置して `再デプロイ` することで実行環境の構築は完了となる.
 
 また `require("./LFUSetup.js").start(evemt, filterFunc, originMime)` に対して、処理の拡張性を定義できる.
 
