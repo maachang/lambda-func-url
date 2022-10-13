@@ -222,7 +222,7 @@ const signatureV4Step1 = function(
         // CanonicalHeadersをセット.
         canonicalHeaders +=
             key.replace(/ +/g, " ") + ":" +
-            header[key].trim().trim().replace(/ +/g, " ") + "\n";
+            header[key].trim().replace(/ +/g, " ") + "\n";
     }
     list = null; scode = null;
     // CanonicalRequestを作成.

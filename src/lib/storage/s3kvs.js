@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////
-// S3のKeyValue構造を利用したKeyValue情報管理を行います.
+// S3のKeyValueStorage構造を利用したKeyValue情報管理を行います.
 // AWSのS3は、基本的にKeyValue形式です.
 // 
 // AWSのS3は、容量単価として 1TByteで 約25$(東京リージョン)と非常に安い.
@@ -28,8 +28,21 @@ if(frequire == undefined) {
 // s3restApi.
 const s3 = frequire("./lib/s3restApi.js");
 
-// jsonb.
-const jsonb = frequire("./lib/storage/jsonb.js");
+// convb.
+const convb = frequire("./lib/storage/convb.js");
+
+// convb => jsonbエンコード.
+const convbEncode = function(value) {
+    const bin = [];
+    convb.encodeValue(bin, value);
+    return Buffer.from(bin);
+}
+
+// convb => jsonbデコード.
+const convbDecode = function(bin) {
+    const pos = [0];
+    return convb.decodeValue(pos, bin);
+}
 
 // インデックスである `=Key=base64(value)` の条件を取得.
 const getIndexKeyValueName = function(key, value) {
@@ -102,48 +115,57 @@ const getS3Params = function(
 // オブジェクト生成処理.
 // prefix 対象のプレフィックス名を設定します.
 //        未設定(undefined)の場合、prefixは""(空)となります.
-// bucket 対象のS3バケット名を設定します.
-//        未設定(undefined)の場合、環境変数 "MAIN_S3_BUCKET" 
-//        で設定されてるバケット名が設定されます.
-// region 対象のリージョンを設定します.
-//        未設定(undefined)の場合東京リージョン(ap-northeast-1)
-//        が設定されます.
-const create = function(prefix, bucket, region) {
+// options {bucket: string, region: string}
+//        - bucket 対象のS3バケット名を設定します.
+//          未設定(undefined)の場合、環境変数 "MAIN_S3_BUCKET" 
+//          で設定されてるバケット名が設定されます.
+//        - region 対象のリージョンを設定します.
+//          未設定(undefined)の場合東京リージョン(ap-northeast-1)
+//          が設定されます.
+const create = function(prefix, options) {
     // 基本バケット名.
     let bucketName = null;
 
     // 基本プレフィックス名.
     let prefixName = null;
 
+    // リージョン名.
+    let regionName = null;
+
+    // optionsが設定されていない場合.
+    if(options == undefined || options == null) {
+        options = {};
+    }
+
     // bucket名が設定されていない.
-    if(typeof(bucket) != "string") {
+    if(typeof(options.bucket) != "string") {
         // バケットから空セット.
         // 環境変数から取得.
-        bucket = process.env["MAIN_S3_BUCKET"];
-        if(bucket == null || bucket == undefined ||
-            bucket.length == 0) {
+        options.bucket = process.env["MAIN_S3_BUCKET"];
+        if(options.bucket == null || options.bucket == undefined ||
+            options.bucket.length == 0) {
             throw new Error("Bucket name is empty.");
         }
     } else {
         // bucket名の整形.
         let flg = false;
-        bucket = bucket.trim();
+        options.bucket = options.bucket.trim();
         // s3:// などの条件が先頭に存在する場合.
-        let p = bucket.indexOf("://");
+        let p = options.bucket.indexOf("://");
         if(p != -1) {
             // 除外.
-            bucket = bucket.substring(p + 3);
+            options.bucket = bucket.substring(p + 3);
             flg = true;
         }
         // 終端の / が存在する場合.
-        if(bucket.endsWith("/")) {
+        if(options.bucket.endsWith("/")) {
             // 除外.
-            bucket = bucket.substring(0, bucket.length - 1);
+            options.bucket = options.bucket.substring(0, bucket.length - 1);
             flg = true;
         }
         // 除外があった場合trimをかける.
         if(flg) {
-            bucket = bucket.trim();
+            options.bucket = bucket.trim();
         }
     }
 
@@ -153,7 +175,7 @@ const create = function(prefix, bucket, region) {
         prefix = undefined;
     } else {
         // prefixの整形.
-        flg = false;
+        let flg = false;
         prefix = prefix.trim();
         // 開始に / が存在する場合.
         if(prefix.startsWith("/")) {
@@ -173,24 +195,27 @@ const create = function(prefix, bucket, region) {
         }
     }
     // メンバー変数条件セット.
-    bucketName = bucket;
     prefixName = prefix;
+    bucketName = options.bucket;
+    regionName = options.region;
+    options = undefined;
+    prefix = undefined;
     
     // オブジェクト.
     const ret = {};
 
     // put.
     // tableName 対象のテーブル名を設定します.
-    // value 出力する内容(json)を設定します.
     // keys インデックスキー {key: value ... } を設定します.
+    // value 出力する内容(json)を設定します.
     // 戻り値: trueの場合設定に成功しました.
-    ret.put = async function(tableName, value, keys) {
+    ret.put = async function(tableName, keys, value) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, keys);
-        const body = jsonb.encode(value);
+        value = convbEncode(value);
         const response = {};
-        await s3.putObject(
-            response, region, pm.Bucket, pm.Key, body);
+        const ret = await s3.putObject(
+            response, regionName, pm.Bucket, pm.Key, value);
         return response.status <= 299;
     }
 
@@ -204,9 +229,9 @@ const create = function(prefix, bucket, region) {
             bucketName, prefixName, tableName, keys);
         const response = {};
         const bin = await s3.getObject(
-            response, region, pm.Bucket, pm.Key);
+            response, regionName, pm.Bucket, pm.Key);
         return response.status >= 400 ?
-            null: jsonb.decode(bin);
+            null: convbDecode(bin);
     }
 
     // delete.
@@ -218,7 +243,7 @@ const create = function(prefix, bucket, region) {
             bucketName, prefixName, tableName, keys);
         const response = {};
         await s3.deleteObject(
-            response, region, pm.Bucket, pm.Key);
+            response, regionName, pm.Bucket, pm.Key);
         return response.status <= 299;
     }
 

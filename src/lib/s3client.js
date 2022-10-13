@@ -52,7 +52,7 @@ const create = function(region) {
     //         - key: オブジェクト名.
     //         - lastModified: 最終更新時間(yyyy/MM/ddTHH:mm:ssZ).
     //         - size: ファイルサイズ.
-    ret.getList = async function(params) {
+    ret.listObject = async function(params) {
         // バケット名を取得.
         const bucket = getBucketName(params.Bucket);
         // リスト取得.
@@ -61,7 +61,7 @@ const create = function(region) {
             response, region, bucket, params.Prefix);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
-            console.error("## [ERROR: " + response.status +
+            throw new Error("[ERROR: " + response.status +
                 "]getList bucket: " + bucket +
                 " prefix: " + params.Prefix);
             throw e;
@@ -84,7 +84,7 @@ const create = function(region) {
             response, region, bucket, params.Key);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
-            console.error("## [ERROR: " + response.status +
+            throw new Error("[ERROR: " + response.status +
                 "]headObject bucket: " + bucket + " key: " +
                 params.Key);
             throw e;
@@ -106,7 +106,7 @@ const create = function(region) {
             response, region, bucket, params.Key);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
-            console.error("## [ERROR: " + response.status +
+            throw new Error("[ERROR: " + response.status +
                 "]getObject bucket: " + bucket + " key: " +
                 params.Key);
             throw e;
@@ -138,10 +138,9 @@ const create = function(region) {
             response, region, bucket, params.Key, params.Body);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
-            console.error("## [ERROR: " + response.status +
+            throw new Error("[ERROR: " + response.status +
                 "]putObject bucket: " + bucket + " key: " +
                 params.Key);
-            throw e;
         }
     }
 
@@ -158,7 +157,7 @@ const create = function(region) {
             response, region, bucket, params.Key);
         // レスポンスステータスが400以上の場合エラー.
         if(response.status >= 400) {
-            console.error("## [ERROR: " + response.status +
+            throw new Error("[ERROR: " + response.status +
                 "]deleteObject bucket: " + bucket + " key: " +
                 params.Key);
             throw e;

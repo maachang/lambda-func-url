@@ -99,194 +99,6 @@ const setSignature = function(
         header, credential, region, SERVICE, s1, s2);
 }
 
-// S3書き込みモード: スタンダード.
-const PUT_S3_MODE_STANDARD = "STANDARD";
-
-// S3書き込みモード: 低冗長化(RRS).
-// ※standardの方が最近は安いので、使わない.
-//const PUT_S3_MODE_REDUCED_REDUNDANCY = "REDUCED_REDUNDANCY";
-
-// 指定S3オブジェクトをセット.
-// response HTTPレスポンスヘッダ、ステータスが返却されます.
-//          {status: number, header: {}}
-//          - status レスポンスステータスが返却されます.
-//          - header レスポンスヘッダが返却されます.
-// region 対象のリージョンを設定します.
-//        指定しない場合は 東京リージョン(ap-northeast-1)が
-//        セットされます.
-// bucket 対象のS3バケット名を設定します.
-// key 対象のS3キー名を設定します.
-// body 対象のBody情報を設定します.
-// 戻り値: 対象のS3オブジェクトが返却されます.
-const putObject = async function(
-    response, region, bucket, key, body) {
-    // リージョンを取得.
-    region = getRegion(region);
-    // ホスト名を取得.
-    const host = createPutS3Host(region);
-    // メソッド名.
-    const method = "PUT";
-    // ヘッダを取得.
-    const header = createRequestHeader(host);
-    // 文字列の場合、バイナリ変換.
-    if(typeof(body) == "string") {
-        body = Buffer.from(body);
-    }
-    // ヘッダ追加.
-    header["content-length"] = "" + body.length;
-    header["x-amz-storage-class"] = PUT_S3_MODE_STANDARD;
-
-    // keyの整理.
-    key = key.trim();
-    if(!key.startsWith("/")) {
-        key = "/" + key;
-    }
-    // putの場合パスの先頭にbucket名をセットする.
-    key = bucket + key;
-
-    // シグニチャーを生成.
-    setSignature(region, key, method, header, null, body);
-
-    // HTTPSクライアント問い合わせ.
-    return await httpsClient.request(host, key, {
-        method: method,
-        header: header,
-        body: body,
-        response: response
-    });    
-}
-
-// 指定S3オブジェクトを削除.
-// response HTTPレスポンスヘッダ、ステータスが返却されます.
-//          {status: number, header: {}}
-//          - status レスポンスステータスが返却されます.
-//          - header レスポンスヘッダが返却されます.
-// region 対象のリージョンを設定します.
-//        指定しない場合は 東京リージョン(ap-northeast-1)が
-//        セットされます.
-// bucket 対象のS3バケット名を設定します.
-// key 対象のS3キー名を設定します.
-const deleteObject = async function(response, region, bucket, key) {
-    // リージョンを取得.
-    region = getRegion(region);
-    // ホスト名を取得.
-    const host = createGetS3Host(bucket, region);
-    // メソッド名.
-    const method = "DELETE";
-    // ヘッダを取得.
-    const header = createRequestHeader(host);
-
-    // keyの整理.
-    key = key.trim();
-    if(key.startsWith("/")) {
-        key = key.substring(1).trim();
-    }
-
-    // シグニチャーを生成.
-    setSignature(region, key, method, header);
-
-    // HTTPSクライアント問い合わせ.
-    await httpsClient.request(host, key, {
-        method: method,
-        header: header,
-        response: response
-    });
-}
-
-// 指定S3オブジェクトを取得.
-// response HTTPレスポンスヘッダ、ステータスが返却されます.
-//          {status: number, header: {}}
-//          - status レスポンスステータスが返却されます.
-//          - header レスポンスヘッダが返却されます.
-// region 対象のリージョンを設定します.
-//        指定しない場合は 東京リージョン(ap-northeast-1)が
-//        セットされます.
-// bucket 対象のS3バケット名を設定します.
-// key 対象のS3キー名を設定します.
-// 戻り値: 対象のS3オブジェクトが返却されます.
-const getObject = async function(
-    response, region, bucket, key) {
-    // リージョンを取得.
-    region = getRegion(region);
-    // ホスト名を取得.
-    const host = createGetS3Host(bucket, region);
-    // メソッド名.
-    const method = "GET";
-    // ヘッダを取得.
-    const header = createRequestHeader(host);
-
-    // keyの整理.
-    key = key.trim();
-    if(key.startsWith("/")) {
-        key = key.substring(1).trim();
-    }
-
-    // シグニチャーを生成.
-    setSignature(region, key, method, header);
-
-    // HTTPSクライアント問い合わせ.
-    return await httpsClient.request(host, key, {
-        method: method,
-        header: header,
-        response: response
-    });
-}
-
-// 指定S3オブジェクトのメタデータを取得.
-// response HTTPレスポンスヘッダ、ステータスが返却されます.
-//          {status: number, header: {}}
-//          - status レスポンスステータスが返却されます.
-//          - header レスポンスヘッダが返却されます.
-// region 対象のリージョンを設定します.
-//        指定しない場合は 東京リージョン(ap-northeast-1)が
-//        セットされます.
-// bucket 対象のS3バケット名を設定します.
-// key 対象のS3キー名を設定します.
-// 戻り値: メダデータが返却されます.
-//        {lastModified: string, size: number}
-//        - lastModified 最終更新日が返却されます.
-//        - size オブジェクトサイズが返却されます.
-const headObject = async function(
-    response, region, bucket, key) {
-    // リージョンを取得.
-    region = getRegion(region);
-    // ホスト名を取得.
-    const host = createGetS3Host(bucket, region);
-    // メソッド名.
-    const method = "HEAD";
-    // ヘッダを取得.
-    const header = createRequestHeader(host);
-
-    // keyの整理.
-    key = key.trim();
-    if(key.startsWith("/")) {
-        key = key.substring(1).trim();
-    }
-
-    // シグニチャーを生成.
-    setSignature(region, key, method, header);
-
-    // HTTPSクライアント問い合わせ.
-    await httpsClient.request(host, key, {
-        method: method,
-        header: header,
-        response: response
-    });
-
-    // レスポンスステータスが400以上の場合.
-    if(response.status >= 400) {
-        // 空返却.
-        return {};
-    }
-
-    // メタ情報を返却.
-    const h = result.header;
-    return {
-        "lastModified": h["last-modified"],
-        "size": parseInt(h["content-length"])
-    };
-}
-
 // xmlの１つの要素内容を取得.
 // name xmlの取得対象タグ名を設定します. 
 // xml 対象のXML(string)を設定します.
@@ -361,6 +173,243 @@ const resultXmlToJson = function(xml) {
     return ret;
 }
 
+// path内容をencodeURIComponentする.
+// path 対象のパスを設定します.
+// 戻り値: encodeURIComponent変換されたパスが返却されます.
+const encodeURIToPath = function(path) {
+    path = path.trim();
+    if(path.length == 0) {
+        return path;
+    }
+    let n, ret;
+    const list = path.split("/");
+    const len = list.length;
+    ret = "";
+    for(let i = 0; i < len; i ++) {
+        n = list[i].trim();
+        if(n.length == 0) {
+            continue;
+        }
+        n = encodeURIComponent(n);
+        if(ret.length == 0) {
+            ret = n;
+        } else {
+            ret = ret + "/" + n;
+        }
+    }
+    return ret;
+}
+
+// S3書き込みモード: スタンダード.
+const PUT_S3_MODE_STANDARD = "STANDARD";
+
+// S3書き込みモード: 低冗長化(RRS).
+// ※standardの方が最近は安いので、使わない.
+//const PUT_S3_MODE_REDUCED_REDUNDANCY = "REDUCED_REDUNDANCY";
+
+// 指定S3オブジェクトをセット.
+// response HTTPレスポンスヘッダ、ステータスが返却されます.
+//          {status: number, header: {}}
+//          - status レスポンスステータスが返却されます.
+//          - header レスポンスヘッダが返却されます.
+// region 対象のリージョンを設定します.
+//        指定しない場合は 東京リージョン(ap-northeast-1)が
+//        セットされます.
+// bucket 対象のS3バケット名を設定します.
+// key 対象のS3キー名を設定します.
+// body 対象のBody情報を設定します.
+// 戻り値: 対象のS3オブジェクトが返却されます.
+const putObject = async function(
+    response, region, bucket, key, body) {
+    if(typeof(key) != "string" || key.length == 0) {
+        throw new Error("key does not exist.");
+    } else if(body == undefined || body == null) {
+        throw new Error("body does not exist.");
+    }
+    // bucket, keyをencodeURL.
+    bucket = encodeURIComponent(bucket);
+    key = encodeURIToPath(key);
+    // リージョンを取得.
+    region = getRegion(region);
+    // ホスト名を取得.
+    const host = createPutS3Host(region);
+    // メソッド名.
+    const method = "PUT";
+    // ヘッダを取得.
+    const header = createRequestHeader(host);
+    // 文字列の場合、バイナリ変換.
+    if(typeof(body) == "string") {
+        body = Buffer.from(body);
+    }
+    // ヘッダ追加.
+    header["content-length"] = "" + body.length;
+    header["x-amz-storage-class"] = PUT_S3_MODE_STANDARD;
+
+    // putの場合パスの先頭にbucket名をセットする.
+    key = bucket + "/" + key;
+
+    // シグニチャーを生成.
+    setSignature(region, key, method, header, null, body);
+
+    // HTTPSクライアント問い合わせ.
+    return await httpsClient.request(host, key, {
+        method: method,
+        header: header,
+        body: body,
+        response: response
+    });    
+}
+
+// 指定S3オブジェクトを削除.
+// response HTTPレスポンスヘッダ、ステータスが返却されます.
+//          {status: number, header: {}}
+//          - status レスポンスステータスが返却されます.
+//          - header レスポンスヘッダが返却されます.
+// region 対象のリージョンを設定します.
+//        指定しない場合は 東京リージョン(ap-northeast-1)が
+//        セットされます.
+// bucket 対象のS3バケット名を設定します.
+// key 対象のS3キー名を設定します.
+const deleteObject = async function(
+    response, region, bucket, key) {
+    if(typeof(key) != "string" || key.length == 0) {
+        throw new Error("key does not exist.");
+    }
+    // bucket, keyをencodeURL.
+    bucket = encodeURIComponent(bucket);
+    key = encodeURIToPath(key);
+    // リージョンを取得.
+    region = getRegion(region);
+    // ホスト名を取得.
+    const host = createGetS3Host(bucket, region);
+    // メソッド名.
+    const method = "DELETE";
+    // ヘッダを取得.
+    const header = createRequestHeader(host);
+
+    // keyの整理.
+    key = key.trim();
+    if(key.startsWith("/")) {
+        key = key.substring(1).trim();
+    }
+
+    // シグニチャーを生成.
+    setSignature(region, key, method, header);
+
+    // HTTPSクライアント問い合わせ.
+    await httpsClient.request(host, key, {
+        method: method,
+        header: header,
+        response: response
+    });
+}
+
+// 指定S3オブジェクトを取得.
+// response HTTPレスポンスヘッダ、ステータスが返却されます.
+//          {status: number, header: {}}
+//          - status レスポンスステータスが返却されます.
+//          - header レスポンスヘッダが返却されます.
+// region 対象のリージョンを設定します.
+//        指定しない場合は 東京リージョン(ap-northeast-1)が
+//        セットされます.
+// bucket 対象のS3バケット名を設定します.
+// key 対象のS3キー名を設定します.
+// 戻り値: 対象のS3オブジェクトが返却されます.
+const getObject = async function(
+    response, region, bucket, key) {
+    if(typeof(key) != "string" || key.length == 0) {
+        throw new Error("key does not exist.");
+    }
+    // bucket, keyをencodeURL.
+    bucket = encodeURIComponent(bucket);
+    key = encodeURIToPath(key);
+    // リージョンを取得.
+    region = getRegion(region);
+    // ホスト名を取得.
+    const host = createGetS3Host(bucket, region);
+    // メソッド名.
+    const method = "GET";
+    // ヘッダを取得.
+    const header = createRequestHeader(host);
+
+    // keyの整理.
+    key = key.trim();
+    if(key.startsWith("/")) {
+        key = key.substring(1).trim();
+    }
+
+    // シグニチャーを生成.
+    setSignature(region, key, method, header);
+
+    // HTTPSクライアント問い合わせ.
+    return await httpsClient.request(host, key, {
+        method: method,
+        header: header,
+        response: response
+    });
+}
+
+// 指定S3オブジェクトのメタデータを取得.
+// response HTTPレスポンスヘッダ、ステータスが返却されます.
+//          {status: number, header: {}}
+//          - status レスポンスステータスが返却されます.
+//          - header レスポンスヘッダが返却されます.
+// region 対象のリージョンを設定します.
+//        指定しない場合は 東京リージョン(ap-northeast-1)が
+//        セットされます.
+// bucket 対象のS3バケット名を設定します.
+// key 対象のS3キー名を設定します.
+// 戻り値: メダデータが返却されます.
+//        {lastModified: string, size: number}
+//        - lastModified 最終更新日が返却されます.
+//        - size オブジェクトサイズが返却されます.
+const headObject = async function(
+    response, region, bucket, key) {
+    if(typeof(key) != "string" || key.length == 0) {
+        throw new Error("key does not exist.");
+    }
+    // bucket, keyをencodeURL.
+    bucket = encodeURIComponent(bucket);
+    key = encodeURIToPath(key);
+    // リージョンを取得.
+    region = getRegion(region);
+    // ホスト名を取得.
+    const host = createGetS3Host(bucket, region);
+    // メソッド名.
+    const method = "HEAD";
+    // ヘッダを取得.
+    const header = createRequestHeader(host);
+
+    // keyの整理.
+    key = key.trim();
+    if(key.startsWith("/")) {
+        key = key.substring(1).trim();
+    }
+
+    // シグニチャーを生成.
+    setSignature(region, key, method, header);
+
+    // HTTPSクライアント問い合わせ.
+    await httpsClient.request(host, key, {
+        method: method,
+        header: header,
+        response: response
+    });
+
+    // レスポンスステータスが400以上の場合.
+    if(response.status >= 400) {
+        // 空返却.
+        return {};
+    }
+
+    // メタ情報を返却.
+    const h = result.header;
+    return {
+        "lastModified": h["last-modified"],
+        "size": parseInt(h["content-length"])
+    };
+}
+
 // 指定S3バケット+プレフィックスのリストを取得.
 // 最大1000件.
 // response HTTPレスポンスヘッダ、ステータスが返却されます.
@@ -381,6 +430,12 @@ const resultXmlToJson = function(xml) {
 //         - size: ファイルサイズ.
 const listObject = async function(
     response, region, bucket, prefix, maxKeys) {
+    if(typeof(prefix) != "string") {
+        throw new Error("prefix does not exist.");
+    }
+    // bucket, prefixをencodeURL.
+    bucket = encodeURIComponent(bucket);
+    prefix = encodeURIToPath(prefix);
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -415,7 +470,7 @@ const listObject = async function(
     setSignature(region, "", method, header, urlParams);
 
     // HTTPSクライアント問い合わせ.
-    const xml = (await httpsClient.request(host, prefix, {
+    const xml = (await httpsClient.request(host, "", {
         method: method,
         header: header,
         urlParams: urlParams,
