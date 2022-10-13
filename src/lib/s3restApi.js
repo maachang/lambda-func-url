@@ -79,6 +79,13 @@ const createRequestHeader = function(host) {
 }
 
 // AWSシグニチャーをセット.
+// credential AWSクレデンシャルを設定します.
+//   {accessKey: string, secretAccessKey: string,
+//     sessionToken: string}
+//   - accessKey アクセスキーが返却されます.
+//   - secretAccessKey シークレットアクセスキーが返却されます.
+//   - sessionToken セッショントークンが返却されます.
+//                  状況によっては空の場合があります.
 // region 対象のリージョンを設定します.
 // key 取得対象のS3キー名を設定します.
 // method HTTPメソッドを設定します.
@@ -86,9 +93,13 @@ const createRequestHeader = function(host) {
 // queryParams クエリーパラメータを設定します.
 // payload リクエストBodyを設定します.
 const setSignature = function(
-    region, key, method, header, queryParams, payload) {
-    // クレデンシャルを取得.
-    let credential = awsSigV4.getCredential();
+    credential, region, key, method, header, queryParams,
+    payload) {
+    // クレデンシャルが指定されてない場合は
+    // 環境変数からクレデンシャルを取得.
+    if(credential == undefined || credential == null) {
+        credential = awsSigV4.getCredential();
+    }
 
     // シグニチャーV4を作成.
     let s1 = awsSigV4.signatureV4Step1(
@@ -235,9 +246,10 @@ const PUT_S3_MODE_STANDARD = "STANDARD";
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
 // body 対象のBody情報を設定します.
+// credential AWSクレデンシャルを設定します.
 // 戻り値: 対象のS3オブジェクトが返却されます.
 const putObject = async function(
-    response, region, bucket, key, body) {
+    response, region, bucket, key, body, credential) {
     if(typeof(key) != "string" || key.length == 0) {
         throw new Error("key does not exist.");
     } else if(body == undefined || body == null) {
@@ -266,7 +278,8 @@ const putObject = async function(
     key = bucket + "/" + key;
 
     // シグニチャーを生成.
-    setSignature(region, key, method, header, null, body);
+    setSignature(credential, region, key,
+        method, header, null, body);
 
     // HTTPSクライアント問い合わせ.
     return await httpsClient.request(host, key, {
@@ -287,8 +300,9 @@ const putObject = async function(
 //        セットされます.
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
+// credential AWSクレデンシャルを設定します.
 const deleteObject = async function(
-    response, region, bucket, key) {
+    response, region, bucket, key, credential) {
     if(typeof(key) != "string" || key.length == 0) {
         throw new Error("key does not exist.");
     }
@@ -311,7 +325,7 @@ const deleteObject = async function(
     }
 
     // シグニチャーを生成.
-    setSignature(region, key, method, header);
+    setSignature(credential, region, key, method, header);
 
     // HTTPSクライアント問い合わせ.
     await httpsClient.request(host, key, {
@@ -331,9 +345,10 @@ const deleteObject = async function(
 //        セットされます.
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
+// credential AWSクレデンシャルを設定します.
 // 戻り値: 対象のS3オブジェクトが返却されます.
 const getObject = async function(
-    response, region, bucket, key) {
+    response, region, bucket, key, credential) {
     if(typeof(key) != "string" || key.length == 0) {
         throw new Error("key does not exist.");
     }
@@ -356,7 +371,7 @@ const getObject = async function(
     }
 
     // シグニチャーを生成.
-    setSignature(region, key, method, header);
+    setSignature(credential, region, key, method, header);
 
     // HTTPSクライアント問い合わせ.
     return await httpsClient.request(host, key, {
@@ -376,12 +391,13 @@ const getObject = async function(
 //        セットされます.
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
+// credential AWSクレデンシャルを設定します.
 // 戻り値: メダデータが返却されます.
 //        {lastModified: string, size: number}
 //        - lastModified 最終更新日が返却されます.
 //        - size オブジェクトサイズが返却されます.
 const headObject = async function(
-    response, region, bucket, key) {
+    response, region, bucket, key, credential) {
     if(typeof(key) != "string" || key.length == 0) {
         throw new Error("key does not exist.");
     }
@@ -404,7 +420,7 @@ const headObject = async function(
     }
 
     // シグニチャーを生成.
-    setSignature(region, key, method, header);
+    setSignature(credential, region, key, method, header);
 
     // HTTPSクライアント問い合わせ.
     await httpsClient.request(host, key, {
@@ -438,17 +454,27 @@ const headObject = async function(
 //        セットされます.
 // bucket 対象のS3バケット名を設定します.
 // prefix 対象のS3プレフィックス名を設定します.
-// maxKeys 最大読み込み件数を設定します.
-//         設定しない場合1000がセットされます.
+// options {maxKeys: number, delimiter: string, marker: string}
+//   - maxKeys 最大読み込み件数を設定します.
+//       設定しない場合1000がセットされます.
+//   - delimiter 取得階層の範囲を設定します.
+//       "/" を設定した場合は指定prefixの階層のみを閲覧します.
+//   - marker 前のlistObject処理で response.header["x-next-marker"]
+//            情報がtrueの場合、一番最後の取得したKey名を設定します.
+// credential AWSクレデンシャルを設定します.
 // 戻り値: リスト情報が返却されます.
 //         [{key: string, lastModified: string, size: number} ... ]
 //         - key: オブジェクト名.
 //         - lastModified: 最終更新時間(yyyy/MM/ddTHH:mm:ssZ).
 //         - size: ファイルサイズ.
 const listObject = async function(
-    response, region, bucket, prefix, maxKeys) {
+    response, region, bucket, prefix, options, credential) {
     if(typeof(prefix) != "string") {
         throw new Error("prefix does not exist.");
+    }
+    // optionsが未設定.
+    if(options == undefined || options == null) {
+        options = {};
     }
     // bucket, prefixをencodeURL.
     bucket = encodeURIToBucket(bucket);
@@ -469,22 +495,34 @@ const listObject = async function(
     }
 
     // 最大読み込み数を数字変換.
-    maxKeys = maxKeys|0;
-    if(maxKeys <= 0 || maxKeys >= 1000) {
-        maxKeys = 1000;
+    options.maxKeys = options.maxKeys|0;
+    if(options.maxKeys <= 0 || options.maxKeys >= 1000) {
+        options.maxKeys = 1000;
     }
 
     // パラメータをセット.
-    const urlParams = httpsClient.convertUrlParams({
-        //"delimiter": delimiter // 区切り文字.
+    let urlParams = {
         "encoding-type": "url", // レスポンスオブジェクトのエンコードタイプ.
-        //"marker": marker, // リスト取得位置をセット.
-        "max-keys": maxKeys, // 最大読み込み件数(default 1000 max 1000).
+        "max-keys": options.maxKeys, // 最大読み込み件数(default 1000 max 1000).
         "prefix": prefix // 読み込みプレフィックス.
-    });
+    }
+
+    // delimiterが設定されている場合.
+    if(typeof(options.delimiter) == "string") {
+        urlParams["delimiter"] = options.delimiter;
+    }
+    
+    // markerが設定されている場合.
+    if(typeof(options.marker) == "string") {
+        urlParams["marker"] = options.marker;
+    }
+
+    // パラメータをセット.
+    urlParams = httpsClient.convertUrlParams(urlParams);
 
     // シグニチャーを生成.
-    setSignature(region, "", method, header, urlParams);
+    setSignature(credential, region, "", method, header,
+        urlParams);
 
     // HTTPSクライアント問い合わせ.
     const xml = (await httpsClient.request(host, "", {
@@ -498,6 +536,20 @@ const listObject = async function(
     if(response.status >= 400) {
         // 空返却.
         return [];
+    }
+
+    // nextMarkerを取得
+    const nextMarker = getXmlElement(
+        "IsTruncated", xml, [0]);
+    // nextMarkerが存在する場合.
+    if(nextMarker != null) {
+        // next条件が存在する場合.
+        response.header["x-next-marker"] =
+            nextMarker.toLowerCase();
+    } else {
+        // next条件が存在しない場合.
+        response.header["x-next-marker"] =
+            "false";
     }
 
     // xmlのリスト情報をJSON変換.

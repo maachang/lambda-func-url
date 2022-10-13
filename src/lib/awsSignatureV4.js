@@ -30,7 +30,16 @@ const END_SCOPE = "aws4_request";
 const EMPTY_PAYLOAD_SHA256 =
     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
-// クレデンシャルを取得.
+// デフォルトのクレデンシャル.
+let DEFAULT_CREDENTIAL = null;
+
+// 最終取得クレデンシャル.
+let LAST_CREDENTIAL_TIME = 0;
+
+// クレデンシャル取得タイムアウト.
+let CREDENTIAL_TIMEOUT = 5000;
+
+// デフォルトのクレデンシャルを取得.
 // 戻り値: {accessKey: string, secretAccessKey: string,
 //           sessionToken: string}
 //         - accessKey アクセスキーが返却されます.
@@ -38,12 +47,22 @@ const EMPTY_PAYLOAD_SHA256 =
 //         - sessionToken セッショントークンが返却されます.
 //                        状況によっては空の場合があります.
 const getCredential = function() {
-    return {
-        accessKey: process.env["AWS_ACCESS_KEY_ID"]
-        ,secretAccessKey: process.env["AWS_SECRET_ACCESS_KEY"]
-        ,sessionToken: process.env["AWS_SESSION_TOKEN"]
+    const now = Date.now();
+    // キャッシュ化されていない場合.
+    // タイムアウトの場合.
+    if(DEFAULT_CREDENTIAL == null ||
+        LAST_CREDENTIAL_TIME < now) {
+        DEFAULT_CREDENTIAL = {
+            accessKey: process.env["AWS_ACCESS_KEY_ID"]
+            ,secretAccessKey: process.env["AWS_SECRET_ACCESS_KEY"]
+            ,sessionToken: process.env["AWS_SESSION_TOKEN"]
+        };
+        // 最終取得時間+タイムアウト値.
+        LAST_CREDENTIAL_TIME = CREDENTIAL_TIMEOUT + now;
     }
+    return DEFAULT_CREDENTIAL;
 }
+
 
 // yyyyMMdd'T'HHmmss'Z'の文字列を作成.
 // date 対象の日付オブジェクトを設定します.
