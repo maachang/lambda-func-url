@@ -74,7 +74,7 @@ let _CACHE_TIMEOUT = 30000;
 // params getS3Pathで生成された内容を設定します.
 // 戻り値: 文字列が返却されます.
 const getCacheName = function(params) {
-    return  "s3://" + params.Bucket + "/" + params.Key;
+    return "s3://" + params.Bucket + "/" + params.Key;
 }
 
 // キャッシュOFF条件.
@@ -114,35 +114,33 @@ const convertS3CurrentPath = function(path) {
 const setOption = function(option) {
     // カレントパスを設定.
     let path = option.currentPath;
-    if(typeof(path) == "string") {
-        _CURRENT_PATH = convertS3CurrentPath(path);
+    if(path != undefined && path != null) {
+        _CURRENT_PATH = convertS3CurrentPath("" + path);
     }
     // リージョンを設定.
     let region = option.region;
-    if(typeof(region) == "string") {
-        region = ("" + region).trim();
-        _REGION = region;
+    if(region != undefined && region != null) {
+        _REGION = "" + region;
     }
     // キャッシュタイムアウト.
-    let timeout = option.timeout;
-    if(typeof(timeout) == "number" && timeout > 0) {
+    let timeout = option.timeout|0;
+    if(timeout > 0) {
         _CACHE_TIMEOUT = timeout;
     }
     // noneCache条件.
-    let noneCache = option.noneCache;
-    if(typeof(noneCache) == "boolean") {
-        _NONE_CACHE = noneCache;
-    }
+    _NONE_CACHE = ("" + option.noneCache) == "true";
+    
     // exportsを返却.
     return exports;
 }
 
-// 設定リージョンが存在しない場合`東京`を設定するようにする.
+// 設定リージョンが存在しない場合`東京(ap-northeast-1)`を
+// 設定するようにする.
 const getRegion = function() {
     let ret = _REGION;
     if(ret == undefined || ret == null) {
         // 指定が無い場合は東京をセット.
-        ret = "ap-northeast-1";
+        ret = _REGION = "ap-northeast-1";
     }
     return ret;
 }  
@@ -354,8 +352,6 @@ const init = function() {
     // s3contentsをglobalに登録(書き換え禁止).
     Object.defineProperty(_g, "s3contents",
         {writable: false, value: s3contents});
-    //_g["s3require"] = s3require;
-    //_g["s3contents"] = s3contents;
 
     // exportsを登録.
     s3require.exports = {

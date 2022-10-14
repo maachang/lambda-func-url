@@ -27,8 +27,10 @@ const httpStatus = frequire("./lib/httpStatus.js");
 //        Error.message: メッセージが設定されます.
 const httpError = function(status, message) {
     // メッセージが設定されていない場合.
-    if(typeof(message) != "string") {
+    if(message == undefined || message == null) {
         message = httpStatus.toMessage(status);
+    } else {
+        message = "" + message;
     }
     const err = new Error(message);
     err.status = status;
@@ -71,8 +73,8 @@ const getUrl = function(host, path, port, urlParams) {
         urlParams = "";
     }
     // URLを作成.
-    return typeof(port) == "number" ?
-        "https://" + host + ":" + port + "/" + path + urlParams:
+    return ((port|0) > 0) ?
+        "https://" + host + ":" + (port|0) + "/" + path + urlParams:
         "https://" + host + "/" + path + urlParams;
 }
 
@@ -140,19 +142,13 @@ const request = function(host, path, options) {
     return new Promise((resolve, reject) => {
         // 接続パラメータを作成.
         const params = {
-            //"host": host,
-            //"path": path,
             "method": method,
             "headers": header
         };
-        //if(typeof(port) == "number") {
-        //    params["port"] = port;
-        //}
         try {
             // request作成.
             const req = https.request(
                 getUrl(host, path, port, urlParams), params, (res) => {
-            //const req = https.request(params, (res) => {
                 // response処理.
                 try {
                     // バイナリ受信.
@@ -163,9 +159,11 @@ const request = function(host, path, options) {
                     res.on("end", ()=>{
                         // レスポンス情報を受け付ける.
                         if(response != undefined) {
-                            response.status = res.statusCode;
-                            response.header = convertHeaderToLowerKey(
-                                res.headers);
+                            response.status =
+                                res.statusCode;
+                            response.header =
+                                convertHeaderToLowerKey(
+                                    res.headers);
                         }
                         resolve(Buffer.concat(body));
                     });

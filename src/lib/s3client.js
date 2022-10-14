@@ -56,10 +56,11 @@ const create = function(region, credential) {
     //         - Prefix 対象のprefix名を設定します.
     //         - MaxKeys 最大取得数を設定します(1 - 1000).
     //         - Delimiter 取得階層の範囲を設定します.
-    //                     "/" を設定した場合は指定prefixの階層のみを
-    //                     閲覧します.
+    //                     "/" を設定した場合は指定prefixが"/"の階層の範囲を
+    //                     リスト取得します.
     //         - Marker 前のlistObject処理で response.header["x-next-marker"]
     //                  情報が"true"の場合、一番最後の取得したKey名を設定します.
+    //         - KeyOnly trueの場合Key名だけ取得します.
     //        またparams.responseが設定されます.
     //        {status: number, header: object}
     // 戻り値: リスト情報が返却されます.
@@ -73,7 +74,8 @@ const create = function(region, credential) {
         const options = {
             maxKeys: params.MaxKeys,
             delimiter: params.Delimiter,
-            marker: params.Marker
+            marker: params.Marker,
+            keyOnly: params.KeyOnly
         };
         // リスト取得.
         const response = {};
