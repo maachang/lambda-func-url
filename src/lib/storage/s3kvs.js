@@ -6,6 +6,7 @@
 // ただS3の1blockが128kbyte単位なので、1byteであっても最低128kbyteとなる.
 // しかし1TByteで月25$なので、128kbyteの1オブジェクトは 月$0.0000025 と
 // 非常に安価だ(たとえば10万データ=$0.25=1USD:140円で月額約35円)
+// s3のI/O料金はGET=($0.0037/10,000req) それ以外=($0.0047/1,000req)
 //
 // 一方でRDSを使った場合最低(mysql, t3-micro, 20Gbyteの１台で月額約3000円
 // ちょい)とバージョンアップ等のメンテナンス費用やレプリケーション等、
@@ -13,9 +14,6 @@
 //
 // ある程度使いやすいS3を使ったKeyValue形式のものを作成する事で、非常に
 // 安価なデータ管理が行える仕組みが作れる可能性があると言えます.
-
-const { type } = require("os");
-
 ///////////////////////////////////////////////////////////////////////
 (function() {
 'use strict'
@@ -142,7 +140,7 @@ const decodeKeyValue = function(keyValue) {
     // 単一のKeyを取得.
     keyValue = keyValue.split("~");
     // valueを解析.
-    let value = keyName[2];
+    let value = keyValue[2];
     if(value.length > 0) {
         // 型定義が存在する場合.
         if(value.startsWith("_")) {
@@ -178,7 +176,7 @@ const decodeKeyValue = function(keyValue) {
         }
     }
     return {
-        key: Buffer.from(keyName[1], 'base64')
+        key: Buffer.from(keyValue[1], 'base64')
             .toString(),
         value: value
     }
@@ -219,7 +217,7 @@ const getS3Params = function(
     // keyが設定されてる場合.
     if(key != undefined && key != null) {
         // topKeyを取得.
-        for(k in key) {
+        for(let k in key) {
             topKey = k;
             break;
         }
@@ -449,26 +447,26 @@ const create = function(prefix, options) {
             throw new Error(
                 "The number of pages is set to zero.");
         }
-        // １ページの取得条件を設定.
-        //  - １回の取得は max.
-        //  - 対象のprefixのみ検索.
-        //  - Key名のみ取得.
-        const opt = {maxKeys: max, delimiter: "/", keyOnly: true};
         // 実行パラメータを生成.
         const pm = getS3Params(
             bucketName, prefixName, tableName, path);
         // 利用条件をセット.
         const bucket = pm.Bucket;
-        const key = pm.Key
+        const prefix = pm.Prefix;
         let cnt = 1;
         let res = null;
         let ret = null;
+        // １ページの取得条件を設定.
+        //  - １回の取得は max.
+        //  - 対象のprefixのみ検索.
+        //  - Key名のみ取得.
+        const opt = {maxKeys: max, delimiter: "/" + prefix, keyOnly: true};
         while(true) {
             // response情報.
             res = {};
             // 対象のリストを取得.
-            ret = s3.listObject(
-                res, regionName, bucket, key, opt,
+            ret = await s3.listObject(
+                res, regionName, bucket, prefix, opt,
                 credential);
             // ページ番号の場合.
             if(cnt >= page) {
