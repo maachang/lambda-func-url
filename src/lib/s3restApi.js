@@ -27,6 +27,9 @@ const awsSigV4 = frequire("./lib/awsSignatureV4.js");
 // サービス名.
 const SERVICE = 's3';
 
+// nextMarker有無情報を格納するHTTPヘッダ名.
+const NEXT_MARKER_NAME = "x-next-marker";
+
 // リージョンを取得.
 // region 対象のregionを設定します.
 // 戻り値: リージョンが返却されます.
@@ -143,11 +146,33 @@ const getXmlElement = function(name, xml, b) {
 
 // listObjectのXMLから必要な内容をJson変換.
 // xml 対象のXML結果を取得.
+// keyOnly trueの場合、Key名だけを取得します.
 // 戻り値 json結果が返却されます.
-const resultXmlToJson = function(xml) {
+const resultXmlToJson = function(xml, keyOnly) {
     let p, b, n, map;
     b = [0];
     const ret = [];
+    // Key名だけ返却の場合.
+    if(keyOnly == true) {
+        while(true) {
+            // コンテンツ条件を取得.
+            p = xml.indexOf("<Contents>", b[0]);
+            if(p == -1) {
+                // 存在しない場合終了.
+                break;
+            }
+            b[0] = p + 10;
+            // Key条件を取得.
+            n = getXmlElement("Key", xml, b);
+            if(n == null) {
+                // Key条件が存在しない場合.
+                break;
+            }
+            // Key名だけ取得.
+            ret[ret.length] = n;    
+        }
+        return ret;
+    }
     while(true) {
         // コンテンツ条件を取得.
         p = xml.indexOf("<Contents>", b[0]);
@@ -182,6 +207,18 @@ const resultXmlToJson = function(xml) {
         map = null;
     }
     return ret;
+}
+
+// nextMarkerが必要判断情報を返却.
+// response 対象のresponseを設定します.
+// xml 対象のxmlテキストを設定します.
+const setNextMarker = function(response, xml) {
+    // nextMarkerを取得
+    const nextMarker = getXmlElement(
+        "IsTruncated", xml, [0]);
+    response.header[NEXT_MARKER_NAME] =
+        nextMarker != null ?
+            nextMarker.toLowerCase() : "false";
 }
 
 // bucket内容をencodeURIComponentする.
@@ -444,7 +481,7 @@ const headObject = async function(
 }
 
 // 指定S3バケット+プレフィックスのリストを取得.
-// 最大1000件.
+// １度に取得できるサイズは最大1000件.
 // response HTTPレスポンスヘッダ、ステータスが返却されます.
 //          {status: number, header: {}}
 //          - status レスポンスステータスが返却されます.
@@ -461,12 +498,17 @@ const headObject = async function(
 //       "/" を設定した場合は指定prefixの階層のみを閲覧します.
 //   - marker 前のlistObject処理で response.header["x-next-marker"]
 //            情報がtrueの場合、一番最後の取得したKey名を設定します.
+//   - keyOnly trueの場合Key名だけ取得します.
 // credential AWSクレデンシャルを設定します.
 // 戻り値: リスト情報が返却されます.
+//         options.keyOnly == true以外の場合.
 //         [{key: string, lastModified: string, size: number} ... ]
 //         - key: オブジェクト名.
 //         - lastModified: 最終更新時間(yyyy/MM/ddTHH:mm:ssZ).
 //         - size: ファイルサイズ.
+//         options.keyOnly == trueの場合.
+//         [key, key, ...]
+//         Arrayに取得Key一覧が返却されます.
 const listObject = async function(
     response, region, bucket, prefix, options, credential) {
     if(typeof(prefix) != "string") {
@@ -538,27 +580,17 @@ const listObject = async function(
         return [];
     }
 
-    // nextMarkerを取得
-    const nextMarker = getXmlElement(
-        "IsTruncated", xml, [0]);
-    // nextMarkerが存在する場合.
-    if(nextMarker != null) {
-        // next条件が存在する場合.
-        response.header["x-next-marker"] =
-            nextMarker.toLowerCase();
-    } else {
-        // next条件が存在しない場合.
-        response.header["x-next-marker"] =
-            "false";
-    }
+    // nextMarkerが必要判断情報を返却.
+    setNextMarker(response, xml);
 
     // xmlのリスト情報をJSON変換.
-    return resultXmlToJson(xml);
+    return resultXmlToJson(xml, options.keyOnly);
 }
 
 /////////////////////////////////////////////////////
 // 外部定義.
 /////////////////////////////////////////////////////
+exports.NEXT_MARKER_NAME = NEXT_MARKER_NAME;
 exports.putObject = putObject;
 exports.deleteObject = deleteObject;
 exports.getObject = getObject;

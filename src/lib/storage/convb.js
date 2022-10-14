@@ -72,14 +72,24 @@ const isMaskString = function(type) {
 // 外部定義.
 exports.isMaskString = isMaskString;
 
-// 指定valueが浮動小数点かチェック.
+// 指定valueが数字型かチェック.
 // value チェック条件を設定します.
-// 戻り値: true の場合浮動小数点です.
+// 戻り値: true の場合数字型です.
 const isNumber = function(value) {
     return typeof(value) == "number";
 }
 // 外部定義.
 exports.isNumber = isNumber;
+
+// 指定valueが浮動小数点かチェック.
+// value チェック条件を設定します.
+// 戻り値: true の場合浮動小数点です.
+const isFloat = function(value){
+  return Number(value) === value
+    && value % 1 !== 0;
+}
+// 外部定義.
+exports.isFloat = isFloat;
 
 // 指定valueが整数かチェック.
 // value チェック条件を設定します.
