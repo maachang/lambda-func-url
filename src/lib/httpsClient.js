@@ -47,13 +47,21 @@ const convertUrlParams = function(urlParams) {
     } else if(typeof(urlParams) == "string") {
         return urlParams;
     }
-    const ret = [];
-    for(var k in urlParams) {
-        ret[ret.length] = encodeURIComponent(k) + "=" +
+    const list = [];
+    for(let k in urlParams) {
+        list[list.length] = encodeURIComponent(k) + "=" +
             encodeURIComponent(urlParams[k]);
     }
-    ret.sort();
-    return ret.join("&");
+    list.sort();
+    const len = list.length;
+    let ret = "";
+    for(let i = 0; i < len; i ++) {
+        if(i != 0) {
+            ret += "&";
+        }
+        ret += list[i];
+    }
+    return ret;
 }
 
 // path内容をencodeURIComponentする.

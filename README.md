@@ -391,11 +391,15 @@ staticコンテンツ = 静的コンテンツは `html` や `javascript` や `cs
 
 主に `json返却` を想定して利用する.
 
+拡張子は `.lfu.js` を設定する.
+
+また、これを呼び出す場合は「拡張子なし」で行う.
+
 実装方法は以下の通り.
 
 ＜例＞
 
-#### public/test.js
+#### public/test.lfu.js
 
 ~~~js
 (function() {
@@ -412,6 +416,9 @@ staticコンテンツ = 静的コンテンツは `html` や `javascript` や `cs
 //         返却形式を制御したい場合は resHeader.setContentTypeでmimeTypeを
 //         設定する事で対応できる.
 exports.handler = function(resStatus, resHeader, request) {
+// 以下の形でも定義が可能.
+// exports.execute = function(resStatus, resHeader, request)
+
     return {hello: "urlPath: " + request.path};
 }
 
@@ -429,6 +436,10 @@ content-type: application/json
 ### 3. jhtmlテンプレートコンテンツ
 
 主に `html返却` を想定して利用する.
+
+拡張子は `.js.html` を設定する.
+
+また、これを呼び出す場合は「.jhtml」で行う.
 
 実装方法は以下の通り.
 
