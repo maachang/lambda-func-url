@@ -178,7 +178,21 @@ LFU環境での最適なメモリーサイズ条件としては
 
 - 512MByte
 
-理由は
+グラフを見るとよく分かる.
+
+<img src="./img/run_js_or_template.jpg" alt="image" title="image" width="30%">
+
+1. 128MByte
+2. 256MByte
+3. 512MByte
+4. 1024MByte
+5. 10240MByte
+
+これを見ると一目瞭然で、3の512MByteと4の1024MByteのグラフがなだらかである事.
+
+メモリ量を上げても、この辺でCPU速度は頭打ちになると言う事を示している.
+
+理由の詳細
 
 - HTML(静的コンテンツ)
   - 512MByte: 395msec<br>

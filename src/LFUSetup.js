@@ -582,7 +582,8 @@ var setRequestParameter = function(event, request) {
             isBinary = false;
         }
         // リクエストのコンテンツタイプを取得.
-        const contentType = request.header.get("content-type");
+        const contentType = request.header.get(
+            "content-type");
         // フォーム形式の場合.
         if(contentType == mime.FORM_DATA) {
             if(isBinary) {
@@ -666,6 +667,18 @@ const main_handler = async function(event, context) {
         // 逆に言えばjs実行ではない場合.
         /////////////////////////////////////////////////
         if(request.extension != undefined) {
+            {
+                const path = request.path.toLowerCase();
+                // ただし以下の拡張子は対象外.
+                if(path.endsWith(".js.html") ||
+                    path.endsWith(".lfu.js")) {
+                    // エラー404.
+                    const err = new Error(
+                        "The specified path cannot be read.");
+                    err.status = 404;
+                    throw err;
+                }
+            }
             // 配置されているコンテンツのバイナリを返却する.
             let resBody = undefined;
 
@@ -674,7 +687,7 @@ const main_handler = async function(event, context) {
             ///////////////////////////////
             if(request.extension == "jhtml") {
                 // jhtmlの実際のコンテンツ名を作成.
-                // .jhtml => .js.html
+                // 拡張子は `.js.html`
                 const name = request.path.substring(
                     0, request.path.length - 6) + ".js.html";
                 
@@ -701,7 +714,6 @@ const main_handler = async function(event, context) {
 
                 // レスポンス出力.
                 return resultJsOut(resState, resHeader, resBody);
-
             }
 
             //////////////////////////
@@ -737,7 +749,9 @@ const main_handler = async function(event, context) {
         ////////////////////////////
         {
             // 対象Javascriptを取得.
-            let func = await _requestFunction(true, request.path + ".js");
+            // 拡張子は `.lfu.js`
+            let func = await _requestFunction(
+                true, request.path + ".lfu.js");
             // 実行メソッド(handler)を取得.
             if(typeof(func["handler"]) == "function") {
                 func = func["handler"];
