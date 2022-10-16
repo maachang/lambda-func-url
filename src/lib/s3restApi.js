@@ -234,37 +234,6 @@ const encodeURIToBucket = function(bucket) {
     return encodeURIComponent(bucket);
 }
 
-// path内容をencodeURIComponentする.
-// path 対象のパスを設定します.
-// 戻り値: encodeURIComponent変換されたパスが返却されます.
-const encodeURIToPath = function(path) {
-    path = path.trim();
-    // パスが空かパス内に "%" すでにURLEncodeしている場合.
-    if(path.length == 0 || path.indexOf("%") != -1) {
-        // 処理しない.
-        return path;
-    }
-    let n, ret;
-    const list = path.split("/");
-    const len = list.length;
-    ret = "";
-    // パスの区切り文字[/]を除外して、
-    // パス名だけをURLEncodeする.
-    for(let i = 0; i < len; i ++) {
-        n = list[i].trim();
-        if(n.length == 0) {
-            continue;
-        }
-        n = encodeURIComponent(n);
-        if(ret.length == 0) {
-            ret = n;
-        } else {
-            ret = ret + "/" + n;
-        }
-    }
-    return ret;
-}
-
 // S3書き込みモード: スタンダード.
 const PUT_S3_MODE_STANDARD = "STANDARD";
 
@@ -294,7 +263,7 @@ const putObject = async function(
     }
     // bucket, keyをencodeURL.
     bucket = encodeURIToBucket(bucket);
-    key = encodeURIToPath(key);
+    key = httpsClient.encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -345,7 +314,7 @@ const deleteObject = async function(
     }
     // bucket, keyをencodeURL.
     bucket = encodeURIToBucket(bucket);
-    key = encodeURIToPath(key);
+    key = httpsClient.encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -391,7 +360,7 @@ const getObject = async function(
     }
     // bucket, keyをencodeURL.
     bucket = encodeURIToBucket(bucket);
-    key = encodeURIToPath(key);
+    key = httpsClient.encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -440,7 +409,7 @@ const headObject = async function(
     }
     // bucket, keyをencodeURL.
     bucket = encodeURIToBucket(bucket);
-    key = encodeURIToPath(key);
+    key = httpsClient.encodeURIToPath(key);
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.
@@ -520,7 +489,7 @@ const listObject = async function(
     }
     // bucket, prefixをencodeURL.
     bucket = encodeURIToBucket(bucket);
-    prefix = encodeURIToPath(prefix);
+    prefix = httpsClient.encodeURIToPath(prefix);
     // リージョンを取得.
     region = getRegion(region);
     // ホスト名を取得.

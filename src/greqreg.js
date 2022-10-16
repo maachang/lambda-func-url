@@ -26,7 +26,7 @@ if(_g.grequire != undefined) {
 const vm = require('vm');
 
 // HttpsClient.
-const httpsClient = require("./httpsClient");
+const httpsClient = require("./lib/httpsClient");
 
 // 文字列が存在するかチェック.
 // s 文字列を設定します.
@@ -80,8 +80,9 @@ const getGithubObjectToPath = function(
         throw new Error("path does not exist");
     }
     // パス名を返却.
-    return organization + "/" + repo + "/" + 
-        branch + "/" + path;
+    return httpsClient.encodeURIToPath(
+        organization + "/" + repo + "/" + 
+        branch + "/" + path);
 }
 
 // 対象Githubリポジトリ内のオブジェクトを取得.

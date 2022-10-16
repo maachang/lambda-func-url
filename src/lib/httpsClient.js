@@ -56,6 +56,37 @@ const convertUrlParams = function(urlParams) {
     return ret.join("&");
 }
 
+// path内容をencodeURIComponentする.
+// path 対象のパスを設定します.
+// 戻り値: encodeURIComponent変換されたパスが返却されます.
+const encodeURIToPath = function(path) {
+    path = path.trim();
+    // パスが空かパス内に "%" すでにURLEncodeしている場合.
+    if(path.length == 0 || path.indexOf("%") != -1) {
+        // 処理しない.
+        return path;
+    }
+    let n, ret;
+    const list = path.split("/");
+    const len = list.length;
+    ret = "";
+    // パスの区切り文字[/]を除外して、
+    // パス名だけをURLEncodeする.
+    for(let i = 0; i < len; i ++) {
+        n = list[i].trim();
+        if(n.length == 0) {
+            continue;
+        }
+        n = encodeURIComponent(n);
+        if(ret.length == 0) {
+            ret = n;
+        } else {
+            ret = ret + "/" + n;
+        }
+    }
+    return ret;
+}
+
 // httpsのURLを生成.
 // host [必須]対象のホスト名を設定します.
 // path [任意]対象のパス名を設定します.
@@ -191,6 +222,7 @@ const request = function(host, path, options) {
 /////////////////////////////////////////////////////
 exports.httpError = httpError;
 exports.convertUrlParams = convertUrlParams;
+exports.encodeURIToPath = encodeURIToPath;
 exports.request = request;
 
 })();
