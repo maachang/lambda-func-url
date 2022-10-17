@@ -22,11 +22,19 @@ if(_g.grequire != undefined) {
     return;
 }
 
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("./freqreg.js");
+    frequire = global.frequire;
+}
+
 // nodejs library.
 const vm = require('vm');
 
 // HttpsClient.
-const httpsClient = require("./lib/httpsClient");
+const httpsClient = frequire("./lib/httpsClient");
 
 // 文字列が存在するかチェック.
 // s 文字列を設定します.
@@ -201,11 +209,6 @@ const getOrganizationToken = function(organization) {
 // grequireでloadした内容をCacheする.
 const _GBL_GIT_VALUE_CACHE = {};
 
-// cache情報を取得.
-const getCacheObject = function() {
-    return _GBL_GIT_VALUE_CACHE;
-}
-
 // カレントパス.
 let _CURRENT_PATH = undefined;
 
@@ -337,7 +340,7 @@ const grequire = async function(
         noneCache = _NONE_CACHE;
     }
     // キャッシュオブジェクトを取得.
-    const cache = getCacheObject();
+    const cache = _GBL_GIT_VALUE_CACHE;
     // キャッシュありで処理する場合.
     if(!noneCache) {
         // 既にロードされた内容がキャッシュされているか.
@@ -403,8 +406,17 @@ const gcontents = function(
         getOrganizationToken(organization));
 }
 
+// キャッシュをクリア.
+const clearCache = function() {
+    for(let k in _GBL_GIT_VALUE_CACHE) {
+        delete _GBL_GIT_VALUE_CACHE[k];
+    }
+}
+
 // 初期設定.
 const init = function() {
+    // キャッシュクリアをセット.
+    grequire.clearCache = clearCache;
     // grequireをglobalに登録(書き換え禁止).
     Object.defineProperty(_g, "grequire",
         {writable: false, value: grequire});

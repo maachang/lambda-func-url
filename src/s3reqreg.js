@@ -52,19 +52,22 @@ if(_g.s3require != undefined) {
     return;
 }
 
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("./freqreg.js");
+    frequire = global.frequire;
+}
+
 // nodejs library(vm).
 const vm = require('vm');
 
 // s3restApi.
-const s3 = require("./lib/s3restApi.js")
+const s3 = frequire("./lib/s3restApi.js")
 
 // s3requireでloadした内容をCacheする.
 const _GBL_S3_VALUE_CACHE = {};
-
-// cache情報を取得.
-const getCacheObject = function() {
-    return _GBL_S3_VALUE_CACHE;
-}
 
 // キャッシュタイムアウト値.
 // 初期値 30000msec.
@@ -299,7 +302,7 @@ const s3require = async function(path, curerntPath, noneCache) {
     // 分解したs3paramsをキャッシュ名として取得.
     const s3name = getCacheName(s3params);
     // キャッシュオブジェクトを取得.
-    const cache = getCacheObject();
+    const cache = _GBL_S3_VALUE_CACHE;
     // キャッシュありで処理する場合.
     if(!noneCache) {
         // 既にロードされた内容がキャッシュされているか.
@@ -344,8 +347,18 @@ const s3contents = function(path, curerntPath) {
     return loadS3(getS3Path(path, curerntPath));
 }
 
+// キャッシュをクリア.
+const clearCache = function() {
+    for(let k in _GBL_S3_VALUE_CACHE) {
+        delete _GBL_S3_VALUE_CACHE[k];
+    }
+}
+
+
 // 初期設定.
 const init = function() {
+    // キャッシュクリアをセット.
+    s3require.clearCache = clearCache;
     // s3requireをglobalに登録(書き換え禁止).
     Object.defineProperty(_g, "s3require",
         {writable: false, value: s3require});

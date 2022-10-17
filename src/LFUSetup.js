@@ -8,13 +8,13 @@
 require("./freqreg.js");
 
 // Lambdaに適した最低限のMimeType.
-const mime = require("./lib/mimeType.js");
+const mime = frequire("./lib/mimeType.js");
 
 // HTTPステータス.
-const httpStatus = require("./lib/httpStatus.js");
+const httpStatus = frequire("./lib/httpStatus.js");
 
 // HTTPヘッダ.
-const httpHeader = require("./lib/httpHeader.js");
+const httpHeader = frequire("./lib/httpHeader.js");
 
 // エラー例外処理.
 // message　エラーメッセージを設定します.
@@ -422,7 +422,8 @@ const setNoneCacheHeader = function(headerObject) {
 // body レスポンスBodyを設定します.
 // noBody bodyチェックが不要な場合は true.
 // 戻り値: objectが返却されます.
-const returnResponse = function(status, headerObject, body, noBody) {
+const returnResponse = function(
+    status, headerObject, body, noBody) {
     let isBase64Encoded = false;
     // bodyチェックが不要な場合は true.
     if(noBody != true) {
@@ -618,6 +619,12 @@ var setRequestParameter = function(event, request) {
     }
 }
 
+// 不正な拡張子一覧.
+const BAD_EXTENSION = [
+    ".js.html"
+    ,".lfu.js"
+]
+
 // [Main]ハンドラー実行.
 // lambda-func-url に対する実行処理(HTTP or HTTPS)が行われるので、
 // ここでハンドラー実行処理を行う必要がある.
@@ -667,16 +674,18 @@ const main_handler = async function(event, context) {
         // 逆に言えばjs実行ではない場合.
         /////////////////////////////////////////////////
         if(request.extension != undefined) {
+            // 不正な拡張子をチェック.
             {
                 const path = request.path.toLowerCase();
-                // ただし以下の拡張子は対象外.
-                if(path.endsWith(".js.html") ||
-                    path.endsWith(".lfu.js")) {
-                    // エラー404.
-                    const err = new Error(
-                        "The specified path cannot be read.");
-                    err.status = 404;
-                    throw err;
+                const len = BAD_EXTENSION.length;
+                for(let i = 0; i < len; i ++) {
+                    if(path.endsWith(BAD_EXTENSION[i])) {
+                        // エラー404.
+                        const err = new Error(
+                            "The specified path cannot be read.");
+                        err.status = 404;
+                        throw err;
+                    }
                 }
             }
             // 配置されているコンテンツのバイナリを返却する.
@@ -688,6 +697,7 @@ const main_handler = async function(event, context) {
             if(request.extension == "jhtml") {
                 // jhtmlの実際のコンテンツ名を作成.
                 // 拡張子は `.js.html`
+                // .jhtml から .js.html に置き換えてアクセス.
                 const name = request.path.substring(
                     0, request.path.length - 6) + ".js.html";
                 
@@ -697,7 +707,7 @@ const main_handler = async function(event, context) {
                 resBody = Buffer.from(resBody).toString();
 
                 // jhtmlライブラリを取得.
-                const jhtml = require("./lib/jhtml.js");
+                const jhtml = frequire("./lib/jhtml.js");
 
                 // jhtmlをjs変換.
                 resBody = jhtml.convertJhtmlToJs(resBody);
@@ -762,7 +772,7 @@ const main_handler = async function(event, context) {
             } else {
                 throw new Error(
                     "The execution method does not exist in the specified path: \"" +
-                    request.path + ".js\" condition.")
+                    request.path + ".lfu.js\" condition.")
             }
 
             // js実行.

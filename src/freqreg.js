@@ -173,14 +173,21 @@ const fcontents = function(name) {
     return ret;
 }
 
+// キャッシュをクリア.
+const clearCache = function() {
+    for(let k in _GBL_FILE_VALUE_CACHE) {
+        delete _GBL_FILE_VALUE_CACHE[k];
+    }
+}
+
 // 初期設定.
 const init = function() {
+    // キャッシュクリアをセット.
+    frequire.clearCache = clearCache;
     Object.defineProperty(_g, "frequire",
         {writable: false, value: frequire});
     Object.defineProperty(_g, "fcontents",
         {writable: false, value: fcontents});
-    //_g["frequire"] = frequire;
-    //_g["fcontents"] = fcontents;
 }
 
 // 初期化設定を行って `frequire` をgrobalに登録.
