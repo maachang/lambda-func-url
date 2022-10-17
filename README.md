@@ -108,6 +108,8 @@ LFUは、昨今導入された `関数URL`を利用して、AWSのLambdaで管�
 
 あと、簡単な応答確認として URL + `/~ping` パス実行で最短な応答確認ができる(コールドスタート回避用).
 
+また、grequire, s3require, frequire のキャッシュをクリアしたい場合は `/~clearRequireCache` パス実行を行います.
+
 また上記だと curl等のHTTPリクエスト送信が必要となるが、他のAWSサービスから LFU環境にpingアクセスする場合は
 
 ~~~json
