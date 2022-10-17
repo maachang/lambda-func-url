@@ -836,7 +836,18 @@ const timer = function() {
 //            必要があります(非対応の場合は undefined).
 const start = function(event, filterFunc, originMime) {
     // 応答確認.
-    if(event.rawPath == "/~ping") {
+    if(event.rawPath == "/~ping" ||
+        event.rawPath == "/~clearRequireCache") {
+        // キャッシュクリア.
+        if(event.rawPath == "/~clearRequireCache") {
+            if(_g["grequire"] != undefined) {
+                _g["grequire"].clearCache();
+            }
+            if(_g["s3require"] != undefined) {
+                _g["s3require"].clearCache();
+            }
+            _g["frequire"].clearCache();
+        }
         // ping用function返却.
         return async function() {
             return {
