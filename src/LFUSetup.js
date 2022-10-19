@@ -616,7 +616,7 @@ var setRequestParameter = function(event, request) {
             request.isBinary = false;
         // それ以外の場合.
         } else {
-            // バイナリ型でセット.
+            // そのまま設定.
             request.params = {};
             request.body = body;
             request.isBinary = isBinary;
@@ -689,10 +689,8 @@ const main_handler = async function(event, context) {
                 for(let i = 0; i < len; i ++) {
                     if(path.endsWith(BAD_EXTENSION[i])) {
                         // エラー404.
-                        const err = new Error(
-                            "The specified path cannot be read.");
-                        err.status = 404;
-                        throw err;
+                        throw httpStatus.httpError(
+                            404, "The specified path cannot be read.")
                     }
                 }
             }
