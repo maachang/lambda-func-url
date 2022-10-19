@@ -34,7 +34,10 @@ if(frequire == undefined) {
 const vm = require('vm');
 
 // HttpsClient.
-const httpsClient = frequire("./lib/httpsClient");
+const httpsClient = frequire("./lib/httpsClient.js");
+
+// HttpStatus.
+const httpStatus = frequire("./lib/httpStatus.js");
 
 // 文字列が存在するかチェック.
 // s 文字列を設定します.
@@ -70,6 +73,7 @@ const GITHUB_CONTENT_HOST = "raw.githubusercontent.com";
 // 戻り値: パス名が返却されます.
 const getGithubObjectToPath = function(
     organization, repo, branch, currentPath, path) {
+    // チェック処理.
     _checkConnectGithub(organization, repo, branch);
     // パスの先頭に / がある場合は除去する.
     if((path = path.trim()).startsWith("/")) {
@@ -124,7 +128,7 @@ const getGithubObject = async function(path, token) {
     // レスポンスステータスが400を超える場合.
     if(response.status >= 400) {
         // ステータス入りエラー返却.
-        throw httpsClient.httpError(response.status,
+        throw httpStatus.httpError(response.status,
             "error " + response.status +
             " path: " + path);
     }
@@ -177,24 +181,6 @@ const _ORGANIZATION_TOKENS = {};
 // 戻り値 exports と同等の内容が戻されます.
 const setOrganizationToken = function(organization, token) {
     _ORGANIZATION_TOKENS[organization] = token;
-    // exportsを返却.
-    return exports;
-}
-
-// 利用可能なorganizationTokenに対するJson設定を行う.
-// json 以下のjsonフォーマットを設定します.
-// {
-//   organization: token
-// }
-// これによって複数のorganizationに対するToken設定を行います.
-// 戻り値 exports と同等の内容が戻されます.
-const setOrganizationTokenToJson = function(json) {
-    if(!Array.isArray(json)) {
-        throw new Error("Target JSON is not Array type.");
-    }
-    for(let k in json) {
-        setOrganizationToken(k, json[k]);
-    }
     // exportsを返却.
     return exports;
 }
@@ -428,8 +414,7 @@ const init = function() {
     grequire.exports = {
         setOptions: setOptions,
         setDefault: setDefault,
-        setOrganizationToken: setOrganizationToken,
-        setOrganizationTokenToJson: setOrganizationTokenToJson
+        setOrganizationToken: setOrganizationToken
     }
 
     /////////////////////////////////////////////////////

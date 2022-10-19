@@ -1,0 +1,33 @@
+{
+  "name": "lfu-simulator",
+  "bin": {
+    "msful": "index.js"
+  },
+  "version": "0.0.1",
+  "description": "Simulate the LFU locally.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "function",
+    "urls",
+    "simulator",
+    "github",
+    "s3"
+  ],
+  "author": "masahito suzuki <maachang@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maachang/lambda-func-url.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maachang/lambda-func-url/issues"
+  },
+  "homepage": "https://github.com/maachang/lambda-func-url#readme",
+  "dependencies": {},
+  "devDependencies": {}
+}

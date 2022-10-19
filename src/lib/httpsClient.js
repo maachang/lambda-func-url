@@ -15,29 +15,6 @@ if(frequire == undefined) {
 // httpsライブラリ.
 const https = frequire('https');
 
-// httpStatus.js.
-const httpStatus = frequire("./lib/httpStatus.js");
-
-// HTTPエラーを生成.
-// status HTTPステータスを設定します.
-// message HTTPメッセージを設定します.
-//         設定しない場合は HTTPステータスメッセージが返却されます.
-// 戻り値 Errorオブジェクトが返却されます.
-//        Error.status: HTTPステータスが設定されます.
-//        Error.message: メッセージが設定されます.
-const httpError = function(status, message) {
-    // メッセージが設定されていない場合.
-    if(message == undefined || message == null) {
-        message = httpStatus.toMessage(status);
-    } else {
-        message = "" + message;
-    }
-    const err = new Error(message);
-    err.status = status;
-    err.message = message;
-    return err;
-}
-
 // urlParamsを文字列に変換する.
 // urlParams 解析されたURLパラメータを設定します.
 // 戻り値: 変換された文字列が返却されます.
@@ -49,7 +26,8 @@ const convertUrlParams = function(urlParams) {
     }
     const list = [];
     for(let k in urlParams) {
-        list[list.length] = encodeURIComponent(k) + "=" +
+        list[list.length] =
+            encodeURIComponent(k) + "=" +
             encodeURIComponent(urlParams[k]);
     }
     list.sort();
@@ -228,7 +206,6 @@ const request = function(host, path, options) {
 /////////////////////////////////////////////////////
 // 外部定義.
 /////////////////////////////////////////////////////
-exports.httpError = httpError;
 exports.convertUrlParams = convertUrlParams;
 exports.encodeURIToPath = encodeURIToPath;
 exports.request = request;

@@ -49,6 +49,26 @@ const HTTP_STATUS_TO_MESSAGE = {
     505: "HTTP Version not supported"
 };
 
+// HTTPエラーを生成.
+// status HTTPステータスを設定します.
+// message HTTPメッセージを設定します.
+//         設定しない場合は HTTPステータスメッセージが返却されます.
+// 戻り値 Errorオブジェクトが返却されます.
+//        Error.status: HTTPステータスが設定されます.
+//        Error.message: メッセージが設定されます.
+const httpError = function(status, message) {
+    // メッセージが設定されていない場合.
+    if(message == undefined || message == null) {
+        message = toMessage(status);
+    } else {
+        message = "" + message;
+    }
+    const err = new Error(message);
+    err.status = status;
+    err.message = message;
+    return err;
+}
+
 // HTTPステータスのメッセージを取得.
 // status 対象のHTTPステータスを設定します.
 // 戻り値: HTTPステータスメッセージが返却されます.
@@ -64,7 +84,7 @@ const toMessage = function(status) {
 // status 初期ステータスを設定します.
 // 戻り値: HTTPステータスが返却されます.
 const create = function(status) {
-    let httpStatus = typeof(status) != "number" ?
+    let hstate = typeof(status) != "number" ?
         200 : status|0;
     let httpRedirectURL = undefined;
 
@@ -86,7 +106,7 @@ const create = function(status) {
         } else {
             status = 200;
         }
-        httpStatus = status;
+        hstate = status;
         httpRedirectURL =
             (redirectURL == undefined || redirectURL == null) ?
             undefined: redirectURL;
@@ -111,7 +131,7 @@ const create = function(status) {
     // HTTPステータスを取得.
     // 戻り値: HTTPステータスが返却されます.
     ret.getStatus = function() {
-        return httpStatus;
+        return hstate;
     }
 
     // リダイレクト先URLが設定されているか確認.
@@ -136,5 +156,6 @@ const create = function(status) {
 /////////////////////////////////////////////////////
 exports.create = create;
 exports.toMessage = toMessage;
+exports.httpError = httpError;
 
 })();

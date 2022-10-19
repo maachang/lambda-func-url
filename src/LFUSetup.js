@@ -549,6 +549,7 @@ const analysisFormParams = function(n) {
     const ret = {};
     for (var i = 0; i < len; i++) {
         n = list[i].split("=");
+        n[0] = decodeURIComponent(n[0]);
         if (n.length == 1) {
             ret[n[0]] = "";
         } else {
@@ -562,8 +563,12 @@ const analysisFormParams = function(n) {
 // event 対象のeventを設定します.
 // request 対象のリクエスト情報を設定します.
 var setRequestParameter = function(event, request) {
-    // bodyが空の場合(GET).
-    if(typeof(event.body) != "string") {
+    //////////////////////////////////////////////////////////
+    // 基本 postの場合、関数URLだと base64のバイナリで受信される.
+    //////////////////////////////////////////////////////////
+
+    // request.methodが `GET` の場合.
+    if(request.method == "GET") {
         // 空をセット.
         request.body = undefined;
         request.isBinary = false;
@@ -573,7 +578,7 @@ var setRequestParameter = function(event, request) {
     } else {
         let body, isBinary;
         // Base64で設定されている場合.
-        if(event.body.isBase64Encoded == true) {
+        if(event.isBase64Encoded == true) {
             // Base64からバイナリ変換してバイナリとしてセット.
             body = Buffer.from(event.body, 'base64');
             isBinary = true;
@@ -617,6 +622,9 @@ var setRequestParameter = function(event, request) {
             request.isBinary = isBinary;
         }
     }
+    // event.bodyを削除.
+    event.body = undefined;
+    event.isBase64Encoded = false;
 }
 
 // 不正な拡張子一覧.
@@ -785,14 +793,22 @@ const main_handler = async function(event, context) {
     } catch(err) {
         // エラーオブジェクトにHTTPステータスが付与されているかチェック.
         let status = err.status;
+        let message = err.message;
         if(status == undefined) {
             // 設定されていない場合はエラー500.
             status = 500;
         }
+        // エラーメッセージが設定されていない場合.
+        if(message == undefined) {
+            message = "" + err;
+        }
 
         // エラーログ出力.
-        console.error("## error(" + status + "): " + err);
-        console.error(err);
+        console.error("## error(" + status + "): " + message);
+        // error500以上の場合は詳細出力.
+        if(status >= 500) {
+            console.error(err);
+        }
 
         // エラーの場合.
         const resBody =
@@ -809,6 +825,7 @@ const main_handler = async function(event, context) {
     }
 }
 
+/*
 // テストタイマー.
 const timer = function() {
     let startTiem = Date.now();
@@ -826,6 +843,7 @@ const timer = function() {
 
     return ret;
 }
+*/
 
 // lambda-func-url初期処理.
 // event index.jsで渡されるeventを設定します.

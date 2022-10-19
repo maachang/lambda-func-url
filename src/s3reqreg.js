@@ -64,7 +64,10 @@ if(frequire == undefined) {
 const vm = require('vm');
 
 // s3restApi.
-const s3 = frequire("./lib/s3restApi.js")
+const s3 = frequire("./lib/s3restApi.js");
+
+// HttpStatus.
+const httpStatus = frequire("./lib/httpStatus.js");
 
 // s3requireでloadした内容をCacheする.
 const _GBL_S3_VALUE_CACHE = {};
@@ -213,7 +216,7 @@ const loadS3 = async function(params) {
         response, getRegion(), params.Bucket, params.Key)
     if(response.status >= 400) {
         // ステータス入りエラー返却.
-        throw httpsClient.httpError(response.status,
+        throw httpStatus.httpError(response.status,
             "error load s3: " + response.status +
             " " + JSON.stringify(params));
     }
