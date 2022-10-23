@@ -65,19 +65,11 @@ const loadConfEnv = function() {
     }
 }
 
-// [環境変数]loggerディレクトリ.
-const ENV_LOGGER_DIR = "LFU_LOGGER_DIR";
-// [環境変数]logger名.
-const ENV_LOGGER_NAME = "LFU_LOGGER_NAME";
-
 // logger設定をロード.
 const loadLogger = function() {
     // ログ初期化.
     const logger = require("./modules/logger.js");
-    logger.setting({
-        dir: process.env[ENV_LOGGER_DIR],
-        file: process.env[ENV_LOGGER_NAME]
-    });
+    logger.setting();
 }
 
 // クラスター起動.

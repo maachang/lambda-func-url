@@ -82,17 +82,12 @@ const setting = function(options) {
     baseLogOutFile = dir + "/" + file;
 }
 
-// [環境変数]: ログ出力ディレクトリ名.
-const ENV_LOG_DIR = "LFU_LOG_DIR";
-
-// [環境変数]: ログファイル名.
-const ENV_LOG_NAME = "LFU_LOG_NAME";
-
 // 環境変数からログ初期処理.
 const initEnv = function() {
+    const cons = require("../constants.js");
     // 環境変数から条件を取得.
-    const dir = process.env[ENV_LOG_DIR];
-    const name = process.env[ENV_LOG_NAME];
+    const dir = process.env[cons.ENV_LOGGER_DIR];
+    const name = process.env[cons.ENV_LOGGER_NAME];
     // logger設定.
     setting({
         dir: dir, file: name

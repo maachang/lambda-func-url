@@ -7,6 +7,9 @@
 // fs.
 const fs = require("fs");
 
+// constants.
+const cons = require("./constants.js");
+
 // fcipher.
 const cip = require("./modules/fcipher.js");
 
@@ -15,16 +18,6 @@ const DEF_EXTENSION = ".env";
 
 // 暗号済みのファイル拡張子.
 const CIPHER_EXTENSION = ".envc";
-
-// [環境変数]Env定義Confファイル名.
-// 拡張子を除いて設定.
-const ENV_TO_CONF_ENV_NAME = "LFU_ENV_CONF";
-
-// [環境変数]暗号キー条件のKey条件.
-const ENV_CIPHER_KEY = "LFUS_CIPHOER_KEY";
-
-// [環境変数]暗号キー条件のPass条件.
-const ENV_CIPHER_PASS = "LFUS_CIPHOER_PASS";
 
 // 終端の=を取る.
 const catLastEq = function(n) {
@@ -129,7 +122,7 @@ const flushConfEnv = function(file) {
 // 環境変数に設定されているConfEnv名を取得.
 // 戻り値: 環境変数に定義されているconfEnv名が返却されます.
 const getEnvToConfEnvName = function() {
-    return process.env[ENV_TO_CONF_ENV_NAME];
+    return process.env[cons.ENV_TO_CONF_ENV_NAME];
 }
 
 // confEnvファイルをロード.
@@ -145,8 +138,8 @@ const loadConfEnv = function(fileName, key, pass) {
     if(isFile(fileName + CIPHER_EXTENSION)) {
         // 暗号キーやパスが存在しない場合環境変数から取得.
         if(typeof(key) != "string" || typeof(pass) != "string") {
-            key = process.env[ENV_CIPHER_KEY];
-            pass = process.env[ENV_CIPHER_PASS];
+            key = process.env[cons.ENV_CIPHER_KEY];
+            pass = process.env[cons.ENV_CIPHER_PASS];
         }
         const file = loadFile(fileName + CIPHER_EXTENSION);
         file = decodeCipher(file, key, pass);
@@ -183,8 +176,8 @@ const encodeCipherConfEnv = function(fileName, key, pass) {
         const file = loadFile(fileName + DEF_EXTENSION);
         // 暗号キーやパスが存在しない場合環境変数から取得.
         if(typeof(key) != "string" || typeof(pass) != "string") {
-            key = process.env[ENV_CIPHER_KEY];
-            pass = process.env[ENV_CIPHER_PASS];
+            key = process.env[cons.ENV_CIPHER_KEY];
+            pass = process.env[cons.ENV_CIPHER_PASS];
         }
         // 暗号化.
         file = encodeCipher(file, key, pass);
@@ -221,8 +214,8 @@ const decodeCipherConfEnv = function(fileName, key, pass) {
         const file = loadFile(fileName + CIPHER_EXTENSION);
         // 暗号キーやパスが存在しない場合環境変数から取得.
         if(typeof(key) != "string" || typeof(pass) != "string") {
-            key = process.env[ENV_CIPHER_KEY];
-            pass = process.env[ENV_CIPHER_PASS];
+            key = process.env[cons.ENV_CIPHER_KEY];
+            pass = process.env[cons.ENV_CIPHER_PASS];
         }
         // 復号化.
         file = decodeCipher(file, key, pass);
