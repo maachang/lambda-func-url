@@ -283,16 +283,10 @@ const regRequestRequireFunc = function(env) {
             if(jsFlag == true) {
                 // キャッシュしないgrequire実行.
                 return _g.grequire(path,
-                    env.gitConnect.organization,
-                    env.gitConnect.repo,
-                    env.gitConnect.branch,
                     env.requestPath, true);
             }
             // gcontentsを実行してコンテンツを取得.
             return _g.gcontents(path,
-                env.gitConnect.organization,
-                env.gitConnect.repo,
-                env.gitConnect.branch,
                 env.requestPath);
         };
 
@@ -300,9 +294,6 @@ const regRequestRequireFunc = function(env) {
         _g.exrequire = function(
             path, noneCache, currentPath) {
             return _g.grequire(path,
-                env.gitConnect.organization,
-                env.gitConnect.repo,
-                env.gitConnect.branch,
                 currentPath, noneCache
             );
         }

@@ -1,7 +1,7 @@
 {
-  "name": "lfu-simulator",
+  "name": "lfusim",
   "bin": {
-    "msful": "index.js"
+    "lfusim": "index.js"
   },
   "version": "0.0.1",
   "description": "Simulate the LFU locally.",

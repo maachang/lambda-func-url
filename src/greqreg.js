@@ -286,9 +286,6 @@ const originRequire = function(path, js) {
 
 // githubリポジトリ情報を指定してrequire的実行.
 // path [必須]対象のpath を設定します.
-// organization [任意]githubのorganization を設定します.
-// repo [任意]githubのrepogitory を設定します.
-// branch [任意]対象のbranch を設定します.
 // currentPath [任意]カレントパスを設定します.
 // noneCache [任意]キャッシュしない場合は trueを設定します.
 // 戻り値: promiseが返却されます.
@@ -302,18 +299,10 @@ const originRequire = function(path, js) {
 // 面倒なのは、grequireを利用する毎に毎回(async function() {})()
 // 定義が必要なことと、通常のrequireのように、function外の呼び出し
 // 定義ができない点(必ずFunction内で定義が必須)です.
-const grequire = async function(
-    path, organization, repo, branch, currentPath, noneCache) {
-    // 省略パラメータのデフォルト設定.
-    if(!useString(organization)) {
-        organization = _DEFAULT_ORGANIZATION;
-    }
-    if(!useString(repo)) {
-        repo = _DEFAULT_REPO;
-    }
-    if(!useString(branch)) {
-        branch = _DEFAULT_BRANCH;
-    }
+const grequire = async function(path, currentPath, noneCache) {
+    const organization = _DEFAULT_ORGANIZATION;
+    const repo = _DEFAULT_REPO;
+    const branch = _DEFAULT_BRANCH;
     if(!useString(currentPath)) {
         currentPath = _CURRENT_PATH
     }
@@ -364,23 +353,12 @@ const grequire = async function(
 
 // github情報を設定してコンテンツ(binary)を取得.
 // path [必須]対象のpath を設定します.
-// organization [任意]githubのorganization を設定します.
-// repo [任意]githubのrepogitory を設定します.
-// branch [任意]対象のbranch を設定します.
 // currentPath [任意]カレントパスを設定します.
 // 戻り値: promiseが返却されます.
-const gcontents = function(
-    path, organization, repo, branch, currentPath) {
-    // 省略パラメータのデフォルト設定.
-    if(!useString(organization)) {
-        organization = _DEFAULT_ORGANIZATION;
-    }
-    if(!useString(repo)) {
-        repo = _DEFAULT_REPO;
-    }
-    if(!useString(branch)) {
-        branch = _DEFAULT_BRANCH;
-    }
+const gcontents = function(path, currentPath) {
+    const organization = _DEFAULT_ORGANIZATION;
+    const repo = _DEFAULT_REPO;
+    const branch = _DEFAULT_BRANCH;
     if(!useString(currentPath)) {
         currentPath = _CURRENT_PATH
     }

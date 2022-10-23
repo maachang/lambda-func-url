@@ -1,35 +1,27 @@
-///////////////////////////////////////////////////////////////////////////////
-// lambda側のjsファイルをrequireする.
-// または requreで詠み込む nodejsの基本ライブラリもrequireする.
-// script.runInContext() で実行した場合、context=global設定していても、requireが
-// 利用できない.
-// そうすると s3require や grequire で requireが利用できないので、使い勝手が非常に
-// 悪い.
-// 代替え的にrequireを利用できるようにして、lmdLib以下のrequireもできるようにする.
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////
+// simurator向けの偽regreg.
+// - s3require関連のローカル実装.
+// - grequire関連のローカル実装.
+////////////////////////////////////////////////
 (function(_g) {
-'use strict'
-
-// すでに定義済みの場合.
-if(_g.frequire != undefined) {
-    return;
-}
+'use strict';
 
 // nodejs library.
 const vm = require('vm');
 const fs = require('fs');
 
-// カレントパス名.
-const currentPath = __dirname + "/";
-
-// 元のrequire.
-const srcRequire = require;
-
 // 指定パス名を整形.
 // jsFlag true の場合jsファイルを対象とします.
+// currentPath カレントパスを設定します.
 // name パス名を設定.
 // 戻り値: 整形されたパス名が返却されます.
-const trimPath = function(jsFlag, name) {
+const trimPath = function(jsFlag, currentPath, name) {
+    if(typeof(currentPath) != "string") {
+        currentPath = "";
+    } else if((currentPath = currentPath.trim()).endsWith("/")) {
+        currentPath = currentPath.substring(
+            0, currentPath.length - 1),trim();
+    }
     if(name.startsWith("/")) {
         name = name.substring(1).trim();
     }
@@ -42,14 +34,14 @@ const trimPath = function(jsFlag, name) {
             name += ".js";
         }
     }
-    return name;
+    return currentPath + "/" + name;
 }
 
 // ファイル存在確認.
 // name 対象のファイル名を設定します.
 // 戻り値: ファイル名が存在する場合 true.
 const isFile = function(name) {
-    return fs.existsSync(currentPath + name);
+    return fs.existsSync(name);
 }
 
 // ファイルを詠み込む.
@@ -57,9 +49,8 @@ const isFile = function(name) {
 // 戻り値: ファイル内容がstringで返却されます.
 //        存在しない場合は null が返却されます.
 const readFile = function(name) {
-    const fileName = currentPath + name;
-    if(isFile(fileName)) {
-        return fs.readFileSync(fileName);
+    if(isFile(name)) {
+        return fs.readFileSync(name);
     }
     return null;
 }
@@ -110,61 +101,39 @@ const originRequire = function(name, js) {
     }
 }
 
-// frequireeでloadした内容をCacheする.
-const _GBL_FILE_VALUE_CACHE = {};
-
-// 禁止requireファイル群.
-const _FORBIDDEN_FREQUIRES = {
-    "freqreg.js": true,
-    "s3reqreg.js": true,
-    "greqreg.js": true,
-    "LFUSetup.js": true,
-    "index.js": true
-};
-
-// file or 元のrequire 用の require.
+// [偽]ローカルrequire取得.
+// currentPath 対象のカレントパスを設定します.
 // name require先のファイルを取得します.
 // 戻り値: require結果が返却されます.
-const frequire = function(name) {
+const fakeRequire = function(currentPath, name) {
     // ファイル名を整形.
-    const jsName = trimPath(true, name);
-    // 禁止されたrequire先.
-    if(_FORBIDDEN_FREQUIRES[jsName] == true) {
-        throw new Error(
-            "Forbidden require destinations specified: " +
-            name);
-    }
+    const jsName = trimPath(true, currentPath, name);
     // ファイル内容を取得.
     let js = readFile(jsName);
     if(js == null) {
-        // 存在しない場合はrequireで取得.
-        return srcRequire(name);
+        throw new Error(
+            "Specified file name does not exist: " +
+            namjsNamee);
     }
     // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
     // なしで返却.
     if(jsName.toLowerCase().endsWith(".json")) {
         return JSON.parse(js);
     }
-    // キャッシュ情報から取得.
-    let ret = _GBL_FILE_VALUE_CACHE[jsName];
-    // 存在しない場合.
-    if(ret == undefined) {
-        // ロードしてキャッシュ.
-        ret = originRequire(js.toString());
-        js = null;
-        _GBL_FILE_VALUE_CACHE[jsName] = ret;
-    }
-    return ret;
+
+    // jsロード処理.
+    return originRequire(js.toString());
 }
 
-// file 用の contents.
+// [偽]ローカルcontains取得.
+// currentPath 対象のカレントパスを設定します.
 // name contains先のファイルを取得します.
 // 戻り値: contains結果(binary)が返却されます.
-const fcontents = function(name) {
+const fakeContents = function(currentPath, name) {
     // ファイル名を整形.
-    const containsName = trimPath(false, name);
+    const contentsName = trimPath(false, currentPath, name);
     // ファイル内容を取得.
-    const ret = readFile(containsName);
+    const ret = readFile(contentsName);
     if(ret == null) {
         throw new Error(
             "Specified file name does not exist: " +
@@ -173,21 +142,60 @@ const fcontents = function(name) {
     return ret;
 }
 
-// キャッシュをクリア.
-const clearCache = function() {
-    for(let k in _GBL_FILE_VALUE_CACHE) {
-        delete _GBL_FILE_VALUE_CACHE[k];
-    }
+// s3requireを登録.
+// path require先のファイルを取得します.
+// currentPath 対象のカレントパスを設定します.
+// 戻り値: require結果が返却されます.
+const s3require = function(path, currentPath) {
+    return fakeRequire(currentPath, path);
+}
+
+// s3containsを登録.
+// path contains先のファイルを取得します.
+// currentPath 対象のカレントパスを設定します.
+// 戻り値: contains結果(binary)が返却されます.
+const s3contents = function(path, currentPath) {
+    return fakeContents(currentPath, path);
+}
+
+// [s3require]偽exportsを登録.
+s3require.exports = {
+    setOption: function(){}
+};
+
+// grequireを登録.
+// path require先のファイルを取得します.
+// currentPath 対象のカレントパスを設定します.
+// 戻り値: require結果が返却されます.
+const grequire = function(path, currentPath) {
+    return fakeRequire(currentPath, path);
+}
+
+// gcontainsを登録.
+// path contains先のファイルを取得します.
+// currentPath 対象のカレントパスを設定します.
+// 戻り値: contains結果(binary)が返却されます.
+const gcontents = function(path, currentPath) {
+    return fakeContents(currentPath, path);
+}
+
+// [grequire]偽exportsの偽設定を登録.
+grequire.exports = {
+    setOptions: function(){},
+    setDefault: function(){},
+    setOrganizationToken: function(){}
 }
 
 // 初期設定.
-const init = function() {
-    // キャッシュクリアをセット.
-    frequire.clearCache = clearCache;
-    Object.defineProperty(_g, "frequire",
-        {writable: false, value: frequire});
-    Object.defineProperty(_g, "fcontents",
-        {writable: false, value: fcontents});
+const init = function() {    
+    Object.defineProperty(_g, "s3require",
+        {writable: false, value: s3require});
+    Object.defineProperty(_g, "s3contents",
+        {writable: false, value: s3contents});
+    Object.defineProperty(_g, "grequire",
+        {writable: false, value: grequire});
+    Object.defineProperty(_g, "gcontents",
+        {writable: false, value: gcontents});
 }
 
 // 初期化設定を行って `frequire` をgrobalに登録.

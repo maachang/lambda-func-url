@@ -82,6 +82,23 @@ const setting = function(options) {
     baseLogOutFile = dir + "/" + file;
 }
 
+// [環境変数]: ログ出力ディレクトリ名.
+const ENV_LOG_DIR = "LFU_LOG_DIR";
+
+// [環境変数]: ログファイル名.
+const ENV_LOG_NAME = "LFU_LOG_NAME";
+
+// 環境変数からログ初期処理.
+const initEnv = function() {
+    // 環境変数から条件を取得.
+    const dir = process.env[ENV_LOG_DIR];
+    const name = process.env[ENV_LOG_NAME];
+    // logger設定.
+    setting({
+        dir: dir, file: name
+    });
+}
+
 // ログ出力.
 // mode console, debug, warn, errorなどの呼び出し条件を設定します.
 // args 出力内容を配列で設定します.
@@ -292,5 +309,6 @@ console = undefined;
 // 外部定義.
 /////////////////////////////////////////////////////
 exports.setting = setting;
+exports.initEnv = initEnv;
 
 })(global);
