@@ -159,8 +159,8 @@ const create = function(headers, cookies) {
     }
 
     // 登録されたCookie情報をレスポンス用headerに設定.
-    // outHeaders 設定するヘッダ先を設定します.
-    const toCookies = function(outHeaders) {
+    // 戻り値: cookieリストが返却されます.
+    const toCookies = function() {
         // "cookies": [....];
         const cookies = [];
         let em, value, len;
@@ -184,9 +184,7 @@ const create = function(headers, cookies) {
             cookies[cookies.length] = value;
             len ++;
         }
-        if(len > 0) {
-            outHeaders["cookies"] = cookies;
-        }
+        return cookies;
     }
 
     // Header群情報(Object)を取得.

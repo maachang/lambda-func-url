@@ -12,6 +12,10 @@
 // プログラム(node)引数.
 const args = require("./modules/args.js");
 
+//////////////////////////////////////////
+// コマンド引数処理.
+//////////////////////////////////////////
+
 // バージョン表示.
 if(args.isValue("-v", "--version")) {
     require("./help.js").version();
@@ -53,8 +57,24 @@ if(args.isValue("-v", "--version")) {
     return;
 }
 
-// クラスタ.
-const cluster = require('cluster');
+//////////////////////////////////////////
+// lfuシミュレーター実行処理.
+//////////////////////////////////////////
+
+// constants.
+const cons = require("./constants.js");
+
+// lfuパスを取得.
+let lfuPath = process.env[cons.ENV_LFU_PATH];
+if(typeof(lfuPath) != "string") {
+    // lfuパスが設定されていない場合エラー.
+    throw new Error("lfu path is not set.");
+}
+// LFUPathの環境変数対応.
+lfuPath = require("./modules/util/util.js").changeEnv(lfuPath);
+if(lfuPath.endsWith("/")) {
+    lfuPath = lfuPath.substring(0, lfuPath.length - 1);
+}
 
 // confEnvをロード.
 const loadConfEnv = function() {
@@ -118,8 +138,7 @@ const startupCluster = function() {
 }
 
 // ワーカー起動.
-// workerNo ワーカーNoが設定されます.
-const startWorker = function(workerNo) {
+const startWorker = function() {
     // confEnvをロード.
     loadConfEnv();
 
@@ -130,7 +149,7 @@ const startWorker = function(workerNo) {
     let bindPort = args.get("-p", "--port")|0;
     if(bindPort <= 0) {
         // デフォルトのバインドポートをセット.
-        bindPort = require("./constants.js").BIND_PORT;
+        bindPort = cons.BIND_PORT;
     }
 
     // プロセス例外ハンドラ.
@@ -149,20 +168,25 @@ const startWorker = function(workerNo) {
     require("./fakereqreg.js");
 
     // lfuweb.jsを呼び出す.
-    require("./lfuweb.js").startup(bindPort);
+    require("./lfuweb.js").startup(
+        lfuPath, bindPort);
 }
 
-// ワーカーカウンター.
-let workerCounter = 0;
+// クラスタ.
+const cluster = require('cluster');
 
-// クラスタ起動.
+/////////////////////
+// クラスタ用プロセス.
+/////////////////////
 if (cluster.isMaster) {
     startupCluster();
 
-// ワーカー起動.
+/////////////////////
+// ワーカープロセス.
+/////////////////////
 } else {
     // ワーカー起動.
-    startWorker(workerCounter ++);
+    startWorker();
 }
 
 })(global);

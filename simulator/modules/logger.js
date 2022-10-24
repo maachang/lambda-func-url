@@ -35,6 +35,17 @@ const LOG_EXTENTION = ".log";
 // 出力先を設定.
 let baseLogOutFile = null;
 
+// 環境変数からログ初期処理.
+const getEnv = function() {
+    const cons = require("../constants.js");
+    // 環境変数から条件を取得.
+    const dir = process.env[cons.ENV_LOGGER_DIR];
+    const name = process.env[cons.ENV_LOGGER_NAME];
+    return {
+        dir: dir, file: name
+    };
+}
+
 // ログ出力先の定義を行う.
 // options {dir: string, file: string, max: number}
 //   - dir 対象のディレクトリを設定します.
@@ -44,19 +55,19 @@ let baseLogOutFile = null;
 const setting = function(options) {
     // optionsが存在しない場合.
     if(options == null || options == undefined) {
-        // 空をセット.
-        options = {};
+        // env条件を取得.
+        options = getEnv();
     }
     // それぞれを取得.
     let dir = options.dir;
     let file = options.file;
     // 出力先ディレクトリが存在しない場合.
-    if(dir == null || dir == undefined) {
+    if(typeof(dir) != "string") {
         // デフォルトセット.
         dir = DEF_LOG_OUT_DIR;
     }
     // 出力先ファイルが存在しない場合.
-    if(file == null || file == undefined) {
+    if(typeof(file) != "string") {
         // デフォルトセット.
         file = DEF_LOG_OUT_FILE;
     }
@@ -80,18 +91,6 @@ const setting = function(options) {
 
     // 基本出力先を設定.
     baseLogOutFile = dir + "/" + file;
-}
-
-// 環境変数からログ初期処理.
-const initEnv = function() {
-    const cons = require("../constants.js");
-    // 環境変数から条件を取得.
-    const dir = process.env[cons.ENV_LOGGER_DIR];
-    const name = process.env[cons.ENV_LOGGER_NAME];
-    // logger設定.
-    setting({
-        dir: dir, file: name
-    });
 }
 
 // ログ出力.
@@ -304,6 +303,5 @@ console = undefined;
 // 外部定義.
 /////////////////////////////////////////////////////
 exports.setting = setting;
-exports.initEnv = initEnv;
 
 })(global);

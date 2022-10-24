@@ -9,13 +9,22 @@
 // nodejs library.
 const vm = require('vm');
 const fs = require('fs');
+const util = require("./modules/util/util.js")
+
+// 偽S3のメインパス.
+let fakeS3Path = null;
+
+// 偽gitのメインパス.
+let fakeGitPath = null;
 
 // 指定パス名を整形.
 // jsFlag true の場合jsファイルを対象とします.
+// mainPath 対象のメインパスを設定します.
 // currentPath カレントパスを設定します.
 // name パス名を設定.
 // 戻り値: 整形されたパス名が返却されます.
-const trimPath = function(jsFlag, currentPath, name) {
+const trimPath = function(
+    jsFlag, mainPath, currentPath, name) {
     if(typeof(currentPath) != "string") {
         currentPath = "";
     } else if((currentPath = currentPath.trim()).endsWith("/")) {
@@ -34,7 +43,7 @@ const trimPath = function(jsFlag, currentPath, name) {
             name += ".js";
         }
     }
-    return currentPath + "/" + name;
+    return mainPath + "/" + currentPath + "/" + name;
 }
 
 // ファイル存在確認.
@@ -102,12 +111,14 @@ const originRequire = function(name, js) {
 }
 
 // [偽]ローカルrequire取得.
+// mainPath 対象のメインパスを設定します.
 // currentPath 対象のカレントパスを設定します.
 // name require先のファイルを取得します.
 // 戻り値: require結果が返却されます.
-const fakeRequire = function(currentPath, name) {
+const fakeRequire = function(mainPath, currentPath, name) {
     // ファイル名を整形.
-    const jsName = trimPath(true, currentPath, name);
+    const jsName = trimPath(
+        true, mainPath, currentPath, name);
     // ファイル内容を取得.
     let js = readFile(jsName);
     if(js == null) {
@@ -126,12 +137,14 @@ const fakeRequire = function(currentPath, name) {
 }
 
 // [偽]ローカルcontains取得.
+// mainPath 対象のメインパスを設定します.
 // currentPath 対象のカレントパスを設定します.
 // name contains先のファイルを取得します.
 // 戻り値: contains結果(binary)が返却されます.
-const fakeContents = function(currentPath, name) {
+const fakeContents = function(mainPath, currentPath, name) {
     // ファイル名を整形.
-    const contentsName = trimPath(false, currentPath, name);
+    const contentsName = trimPath(
+        false, mainPath, currentPath, name);
     // ファイル内容を取得.
     const ret = readFile(contentsName);
     if(ret == null) {
@@ -147,7 +160,11 @@ const fakeContents = function(currentPath, name) {
 // currentPath 対象のカレントパスを設定します.
 // 戻り値: require結果が返却されます.
 const s3require = function(path, currentPath) {
-    return fakeRequire(currentPath, path);
+    if(fakeS3Path == null) {
+        throw new Error(
+            "Permission to use the s3 environment has not been set.");
+    }
+    return fakeRequire(fakeS3Path, currentPath, path);
 }
 
 // s3containsを登録.
@@ -155,7 +172,11 @@ const s3require = function(path, currentPath) {
 // currentPath 対象のカレントパスを設定します.
 // 戻り値: contains結果(binary)が返却されます.
 const s3contents = function(path, currentPath) {
-    return fakeContents(currentPath, path);
+    if(fakeS3Path == null) {
+        throw new Error(
+            "Permission to use the s3 environment has not been set.");
+    }
+    return fakeContents(fakeS3Path, currentPath, path);
 }
 
 // [s3require]偽exportsを登録.
@@ -168,7 +189,11 @@ s3require.exports = {
 // currentPath 対象のカレントパスを設定します.
 // 戻り値: require結果が返却されます.
 const grequire = function(path, currentPath) {
-    return fakeRequire(currentPath, path);
+    if(fakeGitPath == null) {
+        throw new Error(
+            "Permission to use the github environment has not been set.");
+    }
+    return fakeRequire(fakeGitPath, currentPath, path);
 }
 
 // gcontainsを登録.
@@ -176,7 +201,11 @@ const grequire = function(path, currentPath) {
 // currentPath 対象のカレントパスを設定します.
 // 戻り値: contains結果(binary)が返却されます.
 const gcontents = function(path, currentPath) {
-    return fakeContents(currentPath, path);
+    if(fakeGitPath == null) {
+        throw new Error(
+            "Permission to use the github environment has not been set.");
+    }
+    return fakeContents(fakeGitPath, currentPath, path);
 }
 
 // [grequire]偽exportsの偽設定を登録.
@@ -186,8 +215,51 @@ grequire.exports = {
     setOrganizationToken: function(){}
 }
 
+// 偽メインパスを取得.
+const fakeMainPath = function() {
+    const cons = require("./constants.js");
+
+    // 偽S3のメインパス.
+    fakeS3Path = process.env[cons.ENV_FAKE_S3_PATH];
+
+    // 偽gitのメインパス.
+    fakeGitPath = process.env[cons.ENV_FAKE_GITHUB_PATH];
+
+    // 両方とも設定されていない場合.
+    const s3t = typeof(fakeS3Path);
+    const gitt = typeof(fakeGitPath);
+    if(s3t != "string" && gitt != "string") {
+        fakeS3Path = null;
+        fakeGitPath = null;
+        // エラーとする.
+        throw new Error("The main path of s3 and github is not set.");
+    }
+    // s3メインパスを整形する.
+    if(s3t == "string") {
+        fakeS3Path = util.changeEnv(fakeS3Path);
+        if(fakeS3Path.endsWith("/")) {
+            fakeS3Path = fakeS3Path.substring(0, fakeS3Path.length - 1);
+        }
+    } else {
+        fakeS3Path = null;
+    }
+    // gitメインパスを整形する.
+    if(gitt == "string") {
+        fakeGitPath = util.changeEnv(fakeGitPath);
+        if(fakeGitPath.endsWith("/")) {
+            fakeGitPath = fakeGitPath.substring(0, fakeGitPath.length - 1);
+        }
+    } else {
+        fakeGitPath = null;
+    }
+}
+
 // 初期設定.
 const init = function() {    
+    // メインパスを取得.
+    fakeMainPath();
+
+    // グローバル定義.
     Object.defineProperty(_g, "s3require",
         {writable: false, value: s3require});
     Object.defineProperty(_g, "s3contents",

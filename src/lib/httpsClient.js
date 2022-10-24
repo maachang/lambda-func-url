@@ -152,7 +152,8 @@ const request = function(host, path, options) {
     const response = options.response == undefined ?
         undefined : options.response;
     // bodyが存在して、header.content-lengthが存在しない.
-    if(body != undefined && header["content-length"] == undefined) {
+    if(body != undefined && header["content-length"] == undefined &&
+        header["transfer-encoding"] != "chunked") {
         header["content-length"] = Buffer.byteLength(body);
     }
     // 非同期処理.

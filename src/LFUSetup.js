@@ -410,11 +410,12 @@ const setNoneCacheHeader = function(headerObject) {
 // レスポンス返却用情報を作成.
 // status レスポンスステータスコードを設定します.
 // headerObject レスポンスヘッダ(Object型)を設定します.
+// cookies Cookie情報群を設定します.
 // body レスポンスBodyを設定します.
 // noBody bodyチェックが不要な場合は true.
 // 戻り値: objectが返却されます.
 const returnResponse = function(
-    status, headerObject, body, noBody) {
+    status, headerObject, cookies, body, noBody) {
     let isBase64Encoded = false;
     // bodyチェックが不要な場合は true.
     if(noBody != true) {
@@ -463,6 +464,7 @@ const returnResponse = function(
         statusCode: status|0
         ,statusMessage: httpStatus.toMessage(status|0)
         ,headers: setNoneCacheHeader(headerObject)
+        ,cookies: cookies
         ,isBase64Encoded: isBase64Encoded
         ,body: body
     };
@@ -484,13 +486,15 @@ const resultJsOut = function(resState, resHeader, resBody) {
         return returnResponse(
             resState.getStatus(),
             resHeader.toHeaders(),
+            resHeader.toCookies(),
             null, true);
     // レスポンスBodyが存在しない場合.
     } else if(resBody == undefined || resBody == null) {
         // 0文字でレスポンス返却.
         return returnResponse(
             resState.getStatus(),
-            resHeader.toHeaders());
+            resHeader.toHeaders(),
+            resHeader.toCookies());
     }
     // contet-typeが設定されてなくて、返却結果が文字列の場合.
     if(resHeader.get("content-type") == undefined && typeof(body) == "string") {
@@ -502,6 +506,7 @@ const resultJsOut = function(resState, resHeader, resBody) {
     return returnResponse(
         resState.getStatus(),
         resHeader.toHeaders(),
+        resHeader.toCookies(),
         resBody);
 }
 
@@ -748,6 +753,7 @@ const main_handler = async function(event, context) {
             return returnResponse(
                 200,
                 resHeader.toHeaders(),
+                resHeader.toCookies(),
                 resBody);
         }
 
@@ -810,6 +816,7 @@ const main_handler = async function(event, context) {
         return returnResponse(
             status,
             resHeader.toHeaders(),
+            resHeader.toCookies(),
             resBody);
     }
 }

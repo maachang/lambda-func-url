@@ -19,6 +19,15 @@ exports.DESCRIPTION = pkg.description;
 // [http]バインドポート番号.
 exports.BIND_PORT = 3456;
 
+// LFU環境(Lambda環境のローカル)パス.
+exports.ENV_LFU_PATH = "LFU_PATH";
+
+// [環境変数]偽S3のローカルパス.
+exports.ENV_FAKE_S3_PATH = "LFU_FAKE_S3_PATH";
+
+// [環境変数]偽gitのローカルパス.
+exports.ENV_FAKE_GITHUB_PATH = "LFU_FAKE_GITHUB_PATH";
+
 // [環境変数]Env定義Confファイル名.
 // 拡張子を除いて設定.
 exports.ENV_TO_CONF_ENV_NAME = "LFU_ENV_CONF";
