@@ -46,12 +46,55 @@ const getEnv = function() {
     };
 }
 
+// 出力タイプ: trace.
+const LEVEL_TRACE = 1;
+// 出力タイプ: debug.
+const LEVEL_DEBUG = 2;
+// 出力タイプ: info.
+const LEVEL_INFO = 3;
+// 出力タイプ: warn.
+const LEVEL_WARN = 4;
+// 出力タイプ: error.
+const LEVEL_ERROR = 5;
+// 出力タイプ: log.
+const LEVEL_LOG = 99;
+
+// ログレベル.
+let logLevel = LEVEL_INFO;
+
+// ログレベルを設定.
+// level ログレベルを設定します.
+// 戻り値: 設定されたログレベルが返却されます.
+const setLogLevel = function(level) {
+    if(typeof(level) != "string") {
+        return;
+    }
+    switch(level.trim().toLowerCase()) {
+        case "none": logLevel = LEVEL_TRACE; break;
+        case "trace": logLevel = LEVEL_TRACE; break;
+        case "dbg": logLevel = LEVEL_DEBUG; break;
+        case "debug": logLevel = LEVEL_DEBUG; break;
+        case "info": logLevel = LEVEL_INFO; break;
+        case "warn": logLevel = LEVEL_WARN; break;
+        case "warning": logLevel = LEVEL_WARN; break;
+        case "err": logLevel = LEVEL_ERROR; break;
+        case "error": logLevel = LEVEL_ERROR; break;
+    }
+    return logLevel;
+}
+
 // ログ出力先の定義を行う.
 // options {dir: string, file: string, max: number}
 //   - dir 対象のディレクトリを設定します.
 //   - file 対象のファイル名(拡張子抜き)を設定する事で
 //          日付+.log拡張子がセットされます.
 //          例: logout => logout.{yyyy-MM-dd}.log
+//   - level ファイルに出力するログレベルを設定します.
+//           - trace console.traceから許可します.
+//           - debug console.debugから許可します.
+//           - info console.infoから許可します.
+//           - warn console.warnから許可します.
+//           - error console.errorから許可します.
 const setting = function(options) {
     // optionsが存在しない場合.
     if(options == null || options == undefined) {
@@ -61,6 +104,7 @@ const setting = function(options) {
     // それぞれを取得.
     let dir = options.dir;
     let file = options.file;
+    let level = options.level;
     // 出力先ディレクトリが存在しない場合.
     if(typeof(dir) != "string") {
         // デフォルトセット.
@@ -70,6 +114,11 @@ const setting = function(options) {
     if(typeof(file) != "string") {
         // デフォルトセット.
         file = DEF_LOG_OUT_FILE;
+    }
+    // ログレベルが設定されている場合.
+    if(typeof(level) == "string") {
+        // ログ出力レベルをセット.
+        setLogLevel(level);
     }
 
     // ディレクトリ名の整理
@@ -95,8 +144,9 @@ const setting = function(options) {
 
 // ログ出力.
 // mode console, debug, warn, errorなどの呼び出し条件を設定します.
+// level ログレベルを設定します.
 // args 出力内容を配列で設定します.
-const output = function(mode, args) {
+const output = function(mode, level, args) {
     // settingが呼ばれてない場合.
     if(baseLogOutFile == null) {
         throw new Error(
@@ -131,12 +181,15 @@ const output = function(mode, args) {
     // util.formatで文字変換.
     const msg = typeof(args) == "string" ?
         args : util.format.apply(null, args);
-    // 追加出力.
-    fs.appendFileSync(
-        // {baseLogOutFile}.{yyyy-MM_dd}.log
-        baseLogOutFile + "." + ymd + LOG_EXTENTION
-        // [{yyyy-MM-dd hh:mm:ss.sss}] {mode}{message}\n
-        , "[" + ymdhms + "] " + mode + msg + "\n");
+    // ログレベルが満たされた場合.
+    if(logLevel >= level) {
+        // ファイル追加出力.
+        fs.appendFileSync(
+            // {baseLogOutFile}.{yyyy-MM_dd}.log
+            baseLogOutFile + "." + ymd + LOG_EXTENTION
+            // [{yyyy-MM-dd hh:mm:ss.sss}] {mode}{message}\n
+            , "[" + ymdhms + "] " + mode + msg + "\n");
+    }
     // 元のコンソール出力
     _g[SRC_CONSOLE_NAME][srcMode](msg);
 }
@@ -182,23 +235,23 @@ let countSimboles = {};
 /////////////////////////////////////////////////////
 // 変更出力ログ条件を割り当てる.
 /////////////////////////////////////////////////////
-_console.log = function() {
-    output("log", arguments);
-}
 _console.trace = function() {
-    output("trace", arguments);
+    output("trace", LEVEL_TRACE, arguments);
 }
 _console.debug = function() {
-    output("debug", arguments);
+    output("debug", LEVEL_DEBUG, arguments);
 }
 _console.info = function() {
-    output("info", arguments);
+    output("info", LEVEL_INFO, arguments);
 }
 _console.warn = function() {
-    output("warn", arguments);
+    output("warn", LEVEL_WARN, arguments);
 }
 _console.error = function() {
-    output("error", arguments);
+    output("error", LEVEL_ERROR, arguments);
+}
+_console.log = function() {
+    output("log", LEVEL_LOG, arguments);
 }
 _console.clearTime = function() {
     timeSimboles = {};
@@ -207,7 +260,7 @@ _console.time = function(simbol) {
     if(typeof(simbol) != "string") {
         simbol = null;
     }
-    output("log", "[start] " +
+    output("log", LEVEL_LOG, "[start] " +
         (simbol == null ? "default" : simbol));
     timeSimboles[simbol] = Date.now();
 }
@@ -221,7 +274,7 @@ _console.timeLog = function() {
     const msg = "[log] " + time[1] + ": " +
         (Date.now() - time[0]) + "msec " +
         util.format.apply(null, aslice(arguments, 1));
-    output("log", msg);
+    output("log", LEVEL_LOG, msg);
 }
 _console.timeEnd = function(simbol) {
     if(typeof(simbol) != "string") {
@@ -234,7 +287,7 @@ _console.timeEnd = function(simbol) {
     delete timeSimboles[simbol];
     const msg = "[end] " + time[1] + ": " +
         (Date.now() - time[0]) + "msec";
-    output("log", msg);
+    output("log", LEVEL_LOG, msg);
 }
 _console.clearCount = function() {
     countSimboles = {};
@@ -257,7 +310,7 @@ _console.count = function(simbol) {
     if(simbol == null) {
         simbol = "default";
     }
-    output("log", simbol + ": " + c);
+    output("log", LEVEL_LOG, simbol + ": " + c);
 }
 _console.assert = function() {
     let flag;
@@ -282,9 +335,9 @@ _console.assert = function() {
     if(!flag) {
         const msg = util.format.apply(null, aslice(args, 1));
         if(msg.length == 0) {
-            output("log", "Assertion failed");
+            output("log", LEVEL_LOG, "Assertion failed");
         } else {
-            output("log", "Assertion failed: " + msg);
+            output("log", LEVEL_LOG, "Assertion failed: " + msg);
         }
     }
 }

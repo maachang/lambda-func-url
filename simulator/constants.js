@@ -19,6 +19,9 @@ exports.DESCRIPTION = pkg.description;
 // [http]バインドポート番号.
 exports.BIND_PORT = 3456;
 
+// デフォルトのconfenvファイル名(拡張子なし).
+exports.DEF_CONF_ENV_NAME = "./lfu";
+
 // LFU環境(Lambda環境のローカル)パス.
 exports.ENV_LFU_PATH = "LFU_PATH";
 
@@ -43,5 +46,8 @@ exports.ENV_LOGGER_DIR = "LFU_LOGGER_DIR";
 
 // [環境変数]logger名.
 exports.ENV_LOGGER_NAME = "LFU_LOGGER_NAME";
+
+// [環境変数]loggerファイル出力レベル.
+exports.ENV_LOGGER_LEVEL = "LFU_LOGGER_LEVEL";
 
 })(global);

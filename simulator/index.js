@@ -6,8 +6,13 @@
  * MIT Licensed
  */
 
+const { inherits } = require("util");
+
 (function(_g) {
 'use strict';
+
+// fs.
+const fs = require("fs");
 
 // プログラム(node)引数.
 const args = require("./modules/args.js");
@@ -80,25 +85,31 @@ if(lfuPath.endsWith("/")) {
 const loadConfEnv = function() {
     // confEnv条件を取得.
     const confEnv = require("./confenv.js");
-    if(typeof(confEnv.getEnvToConfEnvName()) == "string") {
-        confEnv.loadConfEnv();
-    }
+    confEnv.loadConfEnv();
 }
 
 // logger設定をロード.
 const loadLogger = function() {
     // ログ初期化.
     const logger = require("./modules/logger.js");
-    logger.setting();
+    logger.setting({
+        dir: process.env[cons.ENV_LOGGER_DIR],
+        file: process.env[cons.ENV_LOGGER_NAME],
+        level: process.env[cons.ENV_LOGGER_LEVEL]
+    });
 }
 
-// クラスター起動.
-const startupCluster = function() {
+// 初期処理.
+const init = function() {
     // confEnvをロード.
     loadConfEnv();
 
     // ログ初期化.
     loadLogger();
+}
+
+// クラスター起動.
+const startupCluster = function() {
 
     // ワーカー数を取得.
     let workerLen = args.get("-w", "--worker")|0;
@@ -139,11 +150,8 @@ const startupCluster = function() {
 
 // ワーカー起動.
 const startWorker = function() {
-    // confEnvをロード.
-    loadConfEnv();
-
-    // ログ初期化.
-    loadLogger();
+    // 初期設定.
+    init();
 
     // バインドポート番号を取得.
     let bindPort = args.get("-p", "--port")|0;
