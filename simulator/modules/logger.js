@@ -41,8 +41,9 @@ const getEnv = function() {
     // 環境変数から条件を取得.
     const dir = process.env[cons.ENV_LOGGER_DIR];
     const name = process.env[cons.ENV_LOGGER_NAME];
+    const level = process.env[cons.ENV_LOGGER_LEVEL];
     return {
-        dir: dir, file: name
+        dir: dir, file: name, level: level
     };
 }
 
@@ -143,7 +144,7 @@ const setting = function(options) {
 }
 
 // ログ出力.
-// mode console, debug, warn, errorなどの呼び出し条件を設定します.
+// mode trace, debug, warn, error, logの呼び出し条件を設定します.
 // level ログレベルを設定します.
 // args 出力内容を配列で設定します.
 const output = function(mode, level, args) {
@@ -182,7 +183,7 @@ const output = function(mode, level, args) {
     const msg = typeof(args) == "string" ?
         args : util.format.apply(null, args);
     // ログレベルが満たされた場合.
-    if(logLevel >= level) {
+    if(logLevel <= level) {
         // ファイル追加出力.
         fs.appendFileSync(
             // {baseLogOutFile}.{yyyy-MM_dd}.log

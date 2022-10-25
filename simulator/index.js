@@ -5,61 +5,65 @@
  * Copyright(c) 2022 maachang.
  * MIT Licensed
  */
-
-const { inherits } = require("util");
-
 (function(_g) {
 'use strict';
 
 // fs.
 const fs = require("fs");
 
+// cluster.
+const cluster = require('cluster');
+
 // プログラム(node)引数.
 const args = require("./modules/args.js");
 
-//////////////////////////////////////////
-// コマンド引数処理.
-//////////////////////////////////////////
+// クラスタ実行の場合、コマンド実行を行う.
+if(cluster.isMaster) {
+    
+    //////////////////////////////////////////
+    // コマンド引数処理.
+    //////////////////////////////////////////
 
-// バージョン表示.
-if(args.isValue("-v", "--version")) {
-    require("./help.js").version();
-    return;
-// ヘルプ表示.
-} else if(args.isValue("-h", "--help")) {
-    require("./help.js").print();
-    return;
-// アクセスキーを生成.
-} else if(args.isValue("--keygen")) {
-    const ret = require("./confenv.js").getKeyCode(
-        args.get("-k", "--key"),
-        args.get("-p", "--pass")
-    );
-    console.log("access key : %s", ret.key);
-    console.log("access path: %s", ret.pass);
-    return;
-// confEnvファイルの暗号化.
-} else if(args.isValue("--encode")) {
-    const ret = require("./confenv.js").encodeCipherConfEnv(
-        args.get("-f", "--file"),
-        args.get("-k", "--key"),
-        args.get("-p", "--pass")
-    );
-    console.log("success.");
-    console.log("src : %s", ret.src);
-    console.log("dest: %s", ret.dest);
-    return;
-// confEnvファイルの復号化.
-} else if(args.isValue("--decode")) {
-    const ret = require("./confenv.js").decodeCipherConfEnv(
-        args.get("-f", "--file"),
-        args.get("-k", "--key"),
-        args.get("-p", "--pass")
-    );
-    console.log("success.");
-    console.log("src : %s", ret.src);
-    console.log("dest: %s", ret.dest);
-    return;
+    // バージョン表示.
+    if(args.isValue("-v", "--version")) {
+        require("./help.js").version();
+        return;
+    // ヘルプ表示.
+    } else if(args.isValue("-h", "--help")) {
+        require("./help.js").print();
+        return;
+    // アクセスキーを生成.
+    } else if(args.isValue("--keygen")) {
+        const ret = require("./confenv.js").getKeyCode(
+            args.get("-k", "--key"),
+            args.get("-p", "--pass")
+        );
+        console.log("access key : %s", ret.key);
+        console.log("access path: %s", ret.pass);
+        return;
+    // confEnvファイルの暗号化.
+    } else if(args.isValue("--encode")) {
+        const ret = require("./confenv.js").encodeCipherConfEnv(
+            args.get("-f", "--file"),
+            args.get("-k", "--key"),
+            args.get("-p", "--pass")
+        );
+        console.log("success.");
+        console.log("src : %s", ret.src);
+        console.log("dest: %s", ret.dest);
+        return;
+    // confEnvファイルの復号化.
+    } else if(args.isValue("--decode")) {
+        const ret = require("./confenv.js").decodeCipherConfEnv(
+            args.get("-f", "--file"),
+            args.get("-k", "--key"),
+            args.get("-p", "--pass")
+        );
+        console.log("success.");
+        console.log("src : %s", ret.src);
+        console.log("dest: %s", ret.dest);
+        return;
+    }
 }
 
 //////////////////////////////////////////
@@ -92,6 +96,7 @@ const loadConfEnv = function() {
 const loadLogger = function() {
     // ログ初期化.
     const logger = require("./modules/logger.js");
+    // ログ設定.
     logger.setting({
         dir: process.env[cons.ENV_LOGGER_DIR],
         file: process.env[cons.ENV_LOGGER_NAME],
@@ -100,10 +105,9 @@ const loadLogger = function() {
 }
 
 // 初期処理.
-const init = function() {
+const loadInit = function() {
     // confEnvをロード.
     loadConfEnv();
-
     // ログ初期化.
     loadLogger();
 }
@@ -151,7 +155,7 @@ const startupCluster = function() {
 // ワーカー起動.
 const startWorker = function() {
     // 初期設定.
-    init();
+    loadInit();
 
     // バインドポート番号を取得.
     let bindPort = args.get("-p", "--port")|0;
@@ -179,9 +183,6 @@ const startWorker = function() {
     require("./lfuweb.js").startup(
         lfuPath, bindPort);
 }
-
-// クラスタ.
-const cluster = require('cluster');
 
 /////////////////////
 // クラスタ用プロセス.
