@@ -160,7 +160,7 @@ const create = function(headers, cookies) {
 
     // 登録されたCookie情報をレスポンス用headerに設定.
     // 戻り値: cookieリストが返却されます.
-    const toCookies = function() {
+    ret.toCookies = function() {
         // "cookies": [....];
         const cookies = [];
         let em, value, len;
@@ -195,8 +195,6 @@ const create = function(headers, cookies) {
         for(let k in headList) {
             ret[k] = headList[k];
         }
-        // 生成したヘッダにcookieをセット.
-        toCookies(ret);
         return ret;
     }
 

@@ -114,6 +114,18 @@ const _ENV_NONE_GZIP = "NONE_GZIP";
 // ハードコーディングが不要なので設定を推奨します.
 const _ENV_MAIN_S3_BUCKET = "MAIN_S3_BUCKET";
 
+// [環境変数]filterFunc読み込み先を指定.
+// この条件はexrequire(getEnv(_ENV_FILTER_FUNCTION), true, "")で
+// 取得されます(カレントパスなし、キャッシュなし).
+// また `start` メソッドで渡された場合は、そちらが優先となります.
+const _ENV_FILTER_FUNCTION = "FILTER_FUNCTION";
+
+// [環境変数]originMime読み込み先を指定.
+// この条件はexrequire(getEnv(_ENV_ORIGIN_MIME), true, "")で
+// 取得されます(カレントパスなし、キャッシュなし).
+// また `start` メソッドで渡された場合は、そちらが優先となります.
+const _ENV_ORIGIN_MIME = "ORIGIN_MIME";
+
 // [mainExternal]S3の場合.
 const _MAIN_S3_EXTERNAL = 0;
 
@@ -323,6 +335,14 @@ var _originMimeFunc = undefined;
 //        {type: string, gz: boolean}
 //        が返却されます.
 const getMimeType = function(extention) {
+    // originMimeFuncが存在しない場合.
+    if(_originMimeFunc == undefined) {
+        // 環境変数に定義されてる場合それを利用.
+        const path = getEnv(_ENV_ORIGIN_MIME);
+        if(path != undefined) {
+            _originMimeFunc = exrequire(path, true, "");
+        }
+    }
     let ret = undefined;
     // originMimeFuncが存在する場合.
     if(_originMimeFunc != undefined) {
@@ -450,13 +470,17 @@ const returnResponse = function(
                 if(headerObject["content-type"] == undefined) {
                     headerObject["content-type"] = mime.JSON;
                 }
+            // それ以外の場合.
+            } else {
+                // 空文字をセット.
+                body = "";
             }
         } else {
+            // bodyが物理的に存在しない.
             body = "";
         }
-    }
-    // bodyが存在しない場合.
-    if(body == undefined || body == null) {
+    // bodyが空定義.
+    } else {
         body = "";
     }
     // Lambdaの関数URL戻り値を設定.
@@ -478,23 +502,19 @@ const returnResponse = function(
 const resultJsOut = function(resState, resHeader, resBody) {
     // 実行結果リダイレクト条件が設定されている場合.
     if(resState.isRedirect()) {
-        // 新しいレスポンスヘッダを作成.
-        resHeader = httpHeader.create();
-        // リダイレクト条件をヘッダにセットしてリダイレクト.
-        resHeader.put("location", resState.getRedirectURL());
-        // bodyなしのレスポンス返却.
+        // リダイレクト返信.
         return returnResponse(
             resState.getStatus(),
-            resHeader.toHeaders(),
-            resHeader.toCookies(),
-            null, true);
+            {location: resState.getRedirectURL()},
+            [], null, true);
     // レスポンスBodyが存在しない場合.
     } else if(resBody == undefined || resBody == null) {
         // 0文字でレスポンス返却.
         return returnResponse(
             resState.getStatus(),
             resHeader.toHeaders(),
-            resHeader.toCookies());
+            resHeader.toCookies(),
+            null, true);
     }
     // contet-typeが設定されてなくて、返却結果が文字列の場合.
     if(resHeader.get("content-type") == undefined && typeof(body) == "string") {
@@ -649,6 +669,15 @@ const main_handler = async function(event, context) {
 
         // リクエストパラメータを設定.
         setRequestParameter(event, request);
+
+        // filterFunctionが未設定の場合.
+        if(_filterFunction == undefined) {
+            // 環境変数で定義されている場合はそれをロード.
+            const path = getEnv(_ENV_FILTER_FUNCTION);
+            if(path != undefined) {
+                _filterFunction = exrequire(path, true, "");
+            }
+        }
 
         //////////////////////////////////////////
         // filterFunctionが設定されてる場合呼び出す.
@@ -821,26 +850,6 @@ const main_handler = async function(event, context) {
     }
 }
 
-/*
-// テストタイマー.
-const timer = function() {
-    let startTiem = Date.now();
-
-    const ret = {};
-
-    ret.start = function() {
-        startTiem = Date.now();
-    }
-
-    ret.time = function(msg) {
-        const n = Date.now() - startTiem;
-        console.log(msg + ": " + n);
-    }
-
-    return ret;
-}
-*/
-
 // lambda-func-url初期処理.
 // event index.jsで渡されるeventを設定します.
 // filterFunc コンテンツ実行の前処理を行う場合は設定します.
@@ -920,17 +929,20 @@ const start = function(event, filterFunc, originMime) {
         }
     }
 
-    // filterFuncをセット.
-    _filterFunction = (typeof(filterFunc) != "function") ?
-        undefined : filterFunc;
-
-    // 拡張mimeFuncをセット.
-    _originMimeFunc = (typeof(originMime) != "function") ?
-        undefined : originMime;
-    
     // requestFunction呼び出し処理のFunction登録
     regRequestRequireFunc(env);
 
+    // filterFuncをセット.
+    _filterFunction = undefined;
+    if(typeof(filterFunc) != "function") {
+        _filterFunction = filterFunc;
+    }
+
+    // 拡張mimeFuncをセット.
+    _originMimeFunc = undefined;
+    if(typeof(originMime) != "function") {
+        _originMimeFunc = originMime;
+    }
     // ENVをglobalに設定.
     _g.ENV = env;
 

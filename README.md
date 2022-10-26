@@ -283,6 +283,18 @@ LFU では、以下`環境変数` の設定が必要条件となっている.
   メインで利用するS3Bucket名を設定.<br>
   この値は[任意]ですが、メインS3バケット名を設定しておくとハードコーディングが不要となるので設定を推奨する.<br>
 
+- `FILTER_FUNCTION`<br>
+  [環境変数]filterFunc読み込み先を指定.<br>
+  この条件はexrequire(getEnv(_ENV_FILTER_FUNCTION), true, "")で取得されます(カレントパスなし、キャッシュなし).<br>
+  また `start` メソッドで渡された場合は、そちらが優先となります.<br>
+  この環境変数によって、ターゲットとなるストレージでfilterFuncが実装できます(Lambda側の実装に定義する必要がない).<br>
+
+- `ORIGIN_MIME`<br>
+  [環境変数]originMime読み込み先を指定.<br>
+  この条件はexrequire(getEnv(_ENV_ORIGIN_MIME), true, "")で取得されます(カレントパスなし、キャッシュなし).<br>
+  また `start` メソッドで渡された場合は、そちらが優先となります.<br>
+  この環境変数によって、ターゲットとなるストレージでoriginMimeが実装できます(Lambda側の実装に定義する必要がない).<br>
+
 また、環境変数の値は `global.ENV` で取得可能.
 
 ## LFUのexternalリソース利用概要

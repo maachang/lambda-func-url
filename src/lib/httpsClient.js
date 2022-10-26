@@ -166,7 +166,8 @@ const request = function(host, path, options) {
         try {
             // request作成.
             const req = https.request(
-                getUrl(host, path, port, urlParams), params, (res) => {
+                getUrl(host, path, port, urlParams), params, (res) => 
+            {
                 // response処理.
                 try {
                     // バイナリ受信.
