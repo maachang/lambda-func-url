@@ -467,7 +467,7 @@ const code16 = function(s, mode) {
   let len = s.length;
   mode = mode|0;
   for(let i = 0; i < len; i ++) {
-    n = (mode==1 ? s.charCodeAt(i)|0 : s[i]|0) & 0x00ffffff;
+    n = (s.charCodeAt(i)|0) & 0x00ffffff;
     if((i&0x00000001) == 0) {
       for(let j = 0; j < 16; j+= 2) {
         ret[j] = ret[j] ^ (n-(i+j));
