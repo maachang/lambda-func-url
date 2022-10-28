@@ -263,7 +263,7 @@ LFU では、以下`環境変数` の設定が必要条件となっている.
   - `requirePath` [必須]githubのrequireでの `currentPath` を設定.<br>
   - `token` [任意]githubの対象リポジトリが `private` の場合必要となる.<br>
 
-- `TIMEOUT`<br>
+- `CACHE_TIMEOUT`<br>
   [環境変数]grequire, grequestのキャッシュタイムアウト値.<br>
   キャッシュタイムアウト値を `ミリ秒単位` で設定.<br>
   この値は[任意]で、デフォルト値は30000ミリ秒.<br>

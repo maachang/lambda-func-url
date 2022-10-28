@@ -96,7 +96,7 @@ const _ENV_GIT_CONNECT = "GIT_CONNECT";
 // [環境変数]grequire, grequestのキャッシュタイムアウト値.
 // キャッシュタイムアウト値をミリ秒単位で設定します.
 // この値は[任意]で、デフォルト値は30000ミリ秒です.
-const _ENV_TIMEOUT = "TIMEOUT";
+const _ENV_CACHE_TIMEOUT = "CACHE_TIMEOUT";
 
 // [環境変数]grequire, grequestのキャッシュを行わない場合設定します.
 // キャッシュをしない場合は NONE_CACHE=true と設定します.
@@ -143,7 +143,7 @@ const analysisEnv = function() {
     // 外部接続先'github'の接続基本設定.
     let gitConnect = getEnv(_ENV_GIT_CONNECT);
     // キャッシュタイムアウト.
-    let timeout = getEnv(_ENV_TIMEOUT);
+    let cacheTimeout = getEnv(_ENV_CACHE_TIMEOUT);
     // 基本キャッシュなし条件.
     let noneCache = getEnv(_ENV_NONE_CACHE);
     // 基本GZIPなし条件.
@@ -212,11 +212,11 @@ const analysisEnv = function() {
         }
     }
     
-    // timeout.
-    if(timeout != undefined) {
-        timeout = parseInt(timeout);
-        if(isNaN(timeout)) {
-            error(_ENV_TIMEOUT + " must be numeric.");
+    // cacheTimeout.
+    if(cacheTimeout != undefined) {
+        cacheTimeout = parseInt(cacheTimeout);
+        if(isNaN(cacheTimeout)) {
+            error(_ENV_CACHE_TIMEOUT + " must be numeric.");
         }
     }
 
@@ -250,7 +250,7 @@ const analysisEnv = function() {
         requestPath: requestPath,
         s3Connect: s3Connect,
         gitConnect: gitConnect,
-        timeout: timeout,
+        cacheTimeout: cacheTimeout,
         noneCache: noneCache,
         noneGzip: noneGzip,
         mainS3Bucket: mainS3Bucket
@@ -897,7 +897,7 @@ const start = function(event, filterFunc, originMime) {
         s3reqreg.setOption({
             currentPath: env.s3Connect.requirePath,
             region: env.s3Connect.region,
-            timeout: env.timeout,
+            timeout: env.cacheTimeout,
             nonCache: env.noneCache
         });
     }
@@ -917,7 +917,7 @@ const start = function(event, filterFunc, originMime) {
         // オプション設定.
         greqreg.setOptions({
             currentPath: env.gitConnect.requirePath,
-            timeout: env.timeout,
+            timeout: env.cacheTimeout,
             nonCache: env.noneCache
         });
         // 対象gitHubのprivateアクセス用トークンが存在する場合.

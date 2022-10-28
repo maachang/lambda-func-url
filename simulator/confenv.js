@@ -14,10 +14,13 @@ const cons = require("./constants.js");
 const cip = require("./modules/fcipher.js");
 
 // 未暗号のファイル拡張子.
-const DEF_EXTENSION = ".env";
+const DEF_EXTENSION = ".env.json";
 
 // 暗号済みのファイル拡張子.
-const CIPHER_EXTENSION = ".envc";
+const CIPHER_EXTENSION = ".envc.base64";
+
+// 環境変数から除外する内容.
+const EXCLUDED_KEY = "//";
 
 // 終端の=を取る.
 const catLastEq = function(n) {
@@ -74,6 +77,9 @@ const getKeyCode = function(key, pass) {
 // pass 対象のパスコードを設定します.
 // 戻り値: 変換結果が返却されます.
 const encodeCipher = function(value, key, pass) {
+    if(value instanceof Buffer) {
+        value = value.toString();
+    }
     if(typeof(value) != "string") {
         throw new Error("The cryptographic target does not exist.");
     } else if(typeof(key) != "string" || typeof(pass) != "string") {
@@ -89,6 +95,9 @@ const encodeCipher = function(value, key, pass) {
 // pass 対象のパスコードを設定します.
 // 戻り値: 変換結果が返却されます.
 const decodeCipher = function(value, key, pass) {
+    if(value instanceof Buffer) {
+        value = value.toString();
+    }
     if(typeof(value) != "string") {
         throw new Error("The decryption target does not exist.");
     } else if(typeof(key) != "string" || typeof(pass) != "string") {
@@ -107,6 +116,11 @@ const loadFile = function(fileName) {
     return fs.readFileSync(fileName);
 }
 
+// 環境変数に登録するキーが除外キーかチェック.
+const isExcludedKeys = function(key) {
+    return EXCLUDED_KEY == key;
+}
+
 // ロードConfEnvを反映.
 // file 対象のConfEnvファイル内容を設定します.
 const flushConfEnv = function(file) {
@@ -115,6 +129,10 @@ const flushConfEnv = function(file) {
     }
     file = JSON.parse(file);
     for(let k in file) {
+        if(isExcludedKeys(k) ||
+            file[k] == null || file[k] == undefined) {
+            continue;
+        }
         prodess.env[k] = file[k];
     }
 }
@@ -152,6 +170,9 @@ const getConfEnvNameType = function(name, extension) {
 // key 対象のキーコードを設定します.
 // pass 対象のパスコードを設定します.
 const loadConfEnv = function(fileName, key, pass) {
+    if(fileName == undefined || fileName == null) {
+        throw new Error("File name not set.");
+    }
     // ファイル名が存在しない/ファイルが存在しない場合
     // 環境変数から取得.
     if(getConfEnvNameType(fileName) == -1) {
@@ -195,6 +216,9 @@ const loadConfEnv = function(fileName, key, pass) {
 //         - src 変換元のファイル名が設定されます.
 //         - dest 変換先のファイル名が設定されます.
 const encodeCipherConfEnv = function(fileName, key, pass) {
+    if(fileName == undefined || fileName == null) {
+        throw new Error("File name not set.");
+    }
     // ファイル名が存在しない/ファイルが存在しない場合
     // 環境変数から取得.
     if(getConfEnvNameType(fileName, DEF_EXTENSION) == -1) {
@@ -209,12 +233,14 @@ const encodeCipherConfEnv = function(fileName, key, pass) {
             }
         }
     }
-    const file = loadFile(fileName + DEF_EXTENSION);
+    let file = loadFile(fileName + DEF_EXTENSION);
     // 暗号キーやパスが存在しない場合環境変数から取得.
     if(typeof(key) != "string" || typeof(pass) != "string") {
         key = process.env[cons.ENV_CIPHER_KEY];
         pass = process.env[cons.ENV_CIPHER_PASS];
     }
+
+
     // 暗号化.
     file = encodeCipher(file, key, pass);
     // 暗号化拡張子で保存する.
@@ -247,7 +273,7 @@ const decodeCipherConfEnv = function(fileName, key, pass) {
             }
         }
     }
-    const file = loadFile(fileName + CIPHER_EXTENSION);
+    let file = loadFile(fileName + CIPHER_EXTENSION);
     // 暗号キーやパスが存在しない場合環境変数から取得.
     if(typeof(key) != "string" || typeof(pass) != "string") {
         key = process.env[cons.ENV_CIPHER_KEY];

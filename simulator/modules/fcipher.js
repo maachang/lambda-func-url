@@ -463,11 +463,13 @@ const code16 = function(s, mode) {
   let ret = mode == 1 ?
     [177, 75, 163, 143, 73, 49, 207, 40, 87, 41, 169, 91, 184, 67, 254, 89] :
     [87, 41, 169, 91, 184, 67, 254, 89, 177, 75, 163, 143, 73, 49, 207, 40];
-  let n;
+  let n, type;
   let len = s.length;
   mode = mode|0;
+  type = typeof(s) == "string";
   for(let i = 0; i < len; i ++) {
-    n = (s.charCodeAt(i)|0) & 0x00ffffff;
+    n = type ? (s.charCodeAt(i)|0) & 0x00ffffff:
+      (s[i]|0) & 0x00ffffff;
     if((i&0x00000001) == 0) {
       for(let j = 0; j < 16; j+= 2) {
         ret[j] = ret[j] ^ (n-(i+j));

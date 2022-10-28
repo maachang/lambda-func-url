@@ -17,27 +17,6 @@ const init = function() {
     return pms;
 }
 
-// 今回のパラメータと元パラメータのConcat処理.
-// paramsAndSrcParamsConcat(
-//     params0, params1, ... srcParams(array))
-// - params0, params1, ... 追加パラメータを設定します.
-// - srcParams(array) 呼び出し元パラメータを設定します.
-const paramsAndSrcParamsConcat = function() {
-    let i;
-    let len = arguments.length - 1;
-    const ret = [];
-    // params0, params1, ...
-    for(i = 0; i < len; i ++) {
-        ret[ret.length] = arguments[i];
-    }
-    // srcParams(last).
-    const array = arguments[len];
-    len = array.length;
-    for(i = 0; i < len; i ++) {
-        ret[ret.length] = array[i];
-    }
-}
-
 // 起動パラメータ情報をセット.
 const args = init();
 
@@ -51,8 +30,12 @@ o.get = function() {
     if(arguments == null) {
         return null;
     }
-    return o.next.apply(null,
-        paramsAndSrcParamsConcat(0, arguments));
+    const len = arguments.length;
+    const params = [0];
+    for(let i = 0; i < len; i ++) {
+        params[i + 1] = arguments[i];
+    }
+    return o.next.apply(null, params);
 }
 
 // 番号指定での指定ヘッダ名を指定した要素取得処理.
