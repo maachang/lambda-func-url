@@ -866,11 +866,17 @@ const start = function(event, filterFunc, originMime) {
         if(event.rawPath == "/~clearRequireCache") {
             // git requireキャッシュ削除.
             if(_g["grequire"] != undefined) {
-                _g["grequire"].clearCache();
+                try {
+                    // エラー無視.
+                    _g["grequire"].clearCache();
+                } catch(e) {}
             }
             // s3 requireキャッシュ削除.
             if(_g["s3require"] != undefined) {
-                _g["s3require"].clearCache();
+                try {
+                    // エラー無視.
+                    _g["s3require"].clearCache();
+                } catch(e) {}
             }
             // lambda requireキャッシュ削除.
             _g["frequire"].clearCache();

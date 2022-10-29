@@ -86,7 +86,6 @@ const setNoneCacheHeader = function(headers) {
     headers["cache-control"] = "no-cache";
     headers["pragma"] = "no-cache";
     headers["expire"] = "-1";
-    return headers;
 }
 
 // クロスヘッダをセット.
@@ -117,8 +116,8 @@ const setDefaultHeader = function(headers) {
         // cros返却.
         setCrosHeader(headers);
     }
+    return headers;
 }
-
 
 // レスポンス返却.
 // res 対象のHTTPレスポンスオブジェクトが設定されます.
@@ -320,6 +319,7 @@ const getEvent = function(req, body) {
         event.body = body.toString("base64");
         event.isBase64Encoded = true;
     }
+    //console.log("event: " + JSON.stringify(event, null, "  "));
     return event;
 }
 
