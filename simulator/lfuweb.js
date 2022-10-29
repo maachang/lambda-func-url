@@ -7,6 +7,8 @@
 // 定数定義.
 const cons = require("./constants.js");
 
+const http = require("http");
+
 // HTTPサーバ名.
 const SERVER_NAME = "" + cons.NAME +
     "(" + cons.VERSION + ")";
@@ -64,6 +66,16 @@ const getIp = function(request) {
         : (request.socket && request.socket.remoteAddress)
         ? request.socket.remoteAddress
         : '0.0.0.0';
+}
+
+// URLパスを取得.
+var getPath = function (req) {
+    var u = req.url;
+    var p = u.indexOf("?");
+    if (p == -1) {
+        return u;
+    }
+    return u.substring(0, p);
 }
 
 // HTTPヘッダにNoCacheをセット.
@@ -141,7 +153,7 @@ const sendSuccess = function(res, status, headers, body) {
 const sendError = function(res, status, headers, err) {
     try {
         if(status >= 500) {
-            console.error("[error] sendError: ", err);
+            console.error("sendError: ", err);
         }
         // text返却.
         headers["content-type"] = "text/plain";
@@ -151,7 +163,7 @@ const sendError = function(res, status, headers, err) {
     } catch(e) {
         // エラーをデバッグ出力.
         console.debug(
-            "[error] error send internal error:", e);
+            "error send internal error:", e);
         // レスポンスソケットクローズ.
         try {
             res.socket.destroy();
@@ -225,35 +237,11 @@ const lufDone = function(exitFlag, res, fail, success) {
     }
 }
 
-// lfuで返却されたresult内容を送信.
-// res Httpレスポンスを設定します.
-// result lfuで返却されたresultを設定します.
-const sendLfuResult = function(res, result) {
-    // result = {
-    //   statusCode: number,
-    //   statusMessage: string,
-    //   headers: Object,
-    //   cookies: List,
-    //   isBase64Encoded: boolean,
-    //   body: buffer or string
-    // }
-    // base64で格納されている場合.
-    if(result.isBase64Encoded == true) {
-        // base64を変換する.
-        result.body = Buffer.from(
-            result.body, "base64");
-        result.isBase64Encoded = false;
-    }
-    // 送信処理.
-    sendResponse(res, result.statusCode,
-        result.statusMessage, result.headers,
-        result.cookies, result.body);
-}
-
 // LFUのイベントを作成.
 // req Httpリクエストオブジェクトを設定します.
 // 戻り値: Lfuイベントが返却されます.
 const getEvent = function(req, body) {
+    const path = getPath(req);
     const ip = getIp(req);
     const now = new Date();
     // LambdaFunctionUrlsに渡す
@@ -261,7 +249,7 @@ const getEvent = function(req, body) {
     const event = {
         "version": "2.0",
         "routeKey": "$default",
-        "rawPath": req.path,
+        "rawPath": path,
         "rawQueryString": "",
         "isBase64Encoded": false,
         "headers": {
@@ -279,7 +267,7 @@ const getEvent = function(req, body) {
             "domainPrefix": "$domainPrefix",
             "http": {
                 "method": req.method.toUpperCase(),
-                "path": req.path,
+                "path": path,
                 "protocol": req.protocol,
                 "sourceIp": ip,
                 "userAgent": req.headers["user-agent"]
@@ -312,11 +300,37 @@ const getEvent = function(req, body) {
     return event;
 }
 
+// lfuで返却されたresult内容を送信.
+// res Httpレスポンスを設定します.
+// result lfuで返却されたresultを設定します.
+const resultLft = function(res, result) {
+    // result = {
+    //   statusCode: number,
+    //   statusMessage: string,
+    //   headers: Object,
+    //   cookies: List,
+    //   isBase64Encoded: boolean,
+    //   body: buffer or string
+    // }
+
+    // base64で格納されている場合.
+    if(result.isBase64Encoded == true) {
+        // base64をデコードする.
+        result.body = Buffer.from(
+            result.body, "base64");
+        result.isBase64Encoded = false;
+    }
+    // 送信処理.
+    sendResponse(res, result.statusCode,
+        result.statusMessage, result.headers,
+        result.cookies, result.body);
+}
+
 // lfu呼び出し.
 // req Httpリクエストを設定します.
 // res Httpレスポンスを設定します.
 // body HttpリクエストBodyが存在する場合設定します.
-const callLfu = function(req, res, body) {
+const callLfu = async function(req, res, body) {
     // レスポンス送信フラグ.
     const resFlag = [false];
     // lfuのmain処理呼び出し.
@@ -346,31 +360,16 @@ const callLfu = function(req, res, body) {
             }
         };
         // lfu実行処理.
-        index.handler(event, ctx)
-        .resolve((result) =>  {
-            // 処理済み.
-            if(resFlag[0] != false) {
-                return;
-            }
-            // Lfuから返却された内容を送信.
-            sendLfuResult(res, result);
-            // 処理済みにセット.
-            resFlag[0] = true;
-        })
-        .reject((err) => {
-            // 処理済み.
-            if(resFlag[0] != false) {
-                return;
-            }
-            try {
-                // エラー送信.
-                sendError(res, 500, {}, err);
-            } finally {
-                // 処理済みにセット.
-                resFlag[0] = true;
-            }
-        });
-    } catch(e) {
+        const result = await index.handler(event, ctx);
+        // 処理済み.
+        if(resFlag[0] != false) {
+            return;
+        }
+        // Lfuから返却された内容をresponse.
+        resultLft(res, result);
+        // 処理済みにセット.
+        resFlag[0] = true;
+    } catch(err) {
         // 処理済み.
         if(resFlag[0] != false) {
             return;
@@ -456,15 +455,18 @@ const startupServer = function() {
 
     // http.socketオプションを設定.
     server.on("connection", function(socket) {
-    socket.setNoDelay(true);
-    socket.setKeepAlive(false, 0);
+        socket.setNoDelay(true);
+        socket.setKeepAlive(false, 0);
     });
 
     // 指定ポートで待つ.
-    server.listen(bindPort);
+    // ※ "0.0.0.0" を入れないと `tcp6` となり
+    //    http://localhost:{bindPort}/ で
+    //    アクセスできないので注意.
+    server.listen(bindPort, "0.0.0.0");
 
     // 起動結果をログ出力.
-    console.info("## listen: " + bindPort +
+    console.debug("## listen: " + bindPort +
         " pid:" + process.pid);
 }
 

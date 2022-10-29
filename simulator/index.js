@@ -70,26 +70,56 @@ if(cluster.isMaster) {
 // lfuシミュレーター実行処理.
 //////////////////////////////////////////
 
+// ユーティリティ.
+const util = require("./modules/util/util.js");
+
+// lfuPath.
+let lfuPath = null;
+
 // constants.
 const cons = require("./constants.js");
-
-// lfuパスを取得.
-let lfuPath = process.env[cons.ENV_LFU_PATH];
-if(typeof(lfuPath) != "string") {
-    // lfuパスが設定されていない場合エラー.
-    throw new Error("lfu path is not set.");
-}
-// LFUPathの環境変数対応.
-lfuPath = require("./modules/util/util.js").changeEnv(lfuPath);
-if(lfuPath.endsWith("/")) {
-    lfuPath = lfuPath.substring(0, lfuPath.length - 1);
-}
 
 // confEnvをロード.
 const loadConfEnv = function() {
     // confEnv条件を取得.
     const confEnv = require("./confenv.js");
     confEnv.loadConfEnv();
+
+    // lfuパスを取得.
+    lfuPath = util.getEnv(cons.ENV_LFU_PATH);
+    if(typeof(lfuPath) != "string") {
+        // lfuパスが設定されていない場合エラー.
+        throw new Error("lfu path is not set.");
+    }
+    // LFUPathの環境変数対応.
+    if(lfuPath.endsWith("/")) {
+        lfuPath = lfuPath.substring(0, lfuPath.length - 1);
+    }
+
+    // mainExternalを取得.
+    let mainExternal = util.getEnv("MAIN_EXTERNAL");
+    if(mainExternal == undefined || mainExternal == null) {
+        throw new Error(
+            "\"MAIN_EXTERNAL\" environment variable is not set.")
+    }
+
+    // simurator用にmainExternalの条件をダミーセット.
+    mainExternal = mainExternal.trim().toLowerCase();
+    // s3の場合.
+    if(mainExternal == "s3") {
+        if(process.env["S3_CONNECT"] == undefined ||
+            process.env["S3_CONNECT"] == null) {
+            process.env["S3_CONNECT"] = "$requirePath,$region";
+        }
+    // gitの場合.
+    } else if(mainExternal == "git") {
+        if(process.env["GIT_CONNECT"] == undefined ||
+            process.env["GIT_CONNECT"] == null) {
+            // ダミーセット.
+            process.env["GIT_CONNECT"] =
+                "$organization,$repo,$branch,$requirePath,$token";
+        }
+    }
 }
 
 // logger設定をロード.
@@ -98,9 +128,9 @@ const loadLogger = function() {
     const logger = require("./modules/logger.js");
     // ログ設定.
     logger.setting({
-        dir: process.env[cons.ENV_LOGGER_DIR],
-        file: process.env[cons.ENV_LOGGER_NAME],
-        level: process.env[cons.ENV_LOGGER_LEVEL]
+        dir: util.getEnv(cons.ENV_LOGGER_DIR),
+        file: util.getEnv(cons.ENV_LOGGER_NAME),
+        level: util.getEnv(cons.ENV_LOGGER_LEVEL)
     });
 }
 

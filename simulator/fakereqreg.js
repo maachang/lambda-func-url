@@ -124,7 +124,7 @@ const fakeRequire = function(mainPath, currentPath, name) {
     if(js == null) {
         throw new Error(
             "Specified file name does not exist: " +
-            namjsNamee);
+            jsName);
     }
     // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
     // なしで返却.
@@ -133,7 +133,7 @@ const fakeRequire = function(mainPath, currentPath, name) {
     }
 
     // jsロード処理.
-    return originRequire(js.toString());
+    return originRequire(jsName, js.toString());
 }
 
 // [偽]ローカルcontains取得.
@@ -220,10 +220,10 @@ const fakeMainPath = function() {
     const cons = require("./constants.js");
 
     // 偽S3のメインパス.
-    fakeS3Path = process.env[cons.ENV_FAKE_S3_PATH];
+    fakeS3Path = util.getEnv(cons.ENV_FAKE_S3_PATH);
 
     // 偽gitのメインパス.
-    fakeGitPath = process.env[cons.ENV_FAKE_GITHUB_PATH];
+    fakeGitPath = util.getEnv(cons.ENV_FAKE_GITHUB_PATH);
 
     // 両方とも設定されていない場合.
     const s3t = typeof(fakeS3Path);
@@ -236,7 +236,6 @@ const fakeMainPath = function() {
     }
     // s3メインパスを整形する.
     if(s3t == "string") {
-        fakeS3Path = util.changeEnv(fakeS3Path);
         if(fakeS3Path.endsWith("/")) {
             fakeS3Path = fakeS3Path.substring(0, fakeS3Path.length - 1);
         }
@@ -245,7 +244,6 @@ const fakeMainPath = function() {
     }
     // gitメインパスを整形する.
     if(gitt == "string") {
-        fakeGitPath = util.changeEnv(fakeGitPath);
         if(fakeGitPath.endsWith("/")) {
             fakeGitPath = fakeGitPath.substring(0, fakeGitPath.length - 1);
         }

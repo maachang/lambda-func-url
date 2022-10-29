@@ -13,6 +13,9 @@ const cons = require("./constants.js");
 // fcipher.
 const cip = require("./modules/fcipher.js");
 
+// util.
+const util = require("./modules/util/util.js");
+
 // 未暗号のファイル拡張子.
 const DEF_EXTENSION = ".env.json";
 
@@ -124,6 +127,9 @@ const isExcludedKeys = function(key) {
 // ロードConfEnvを反映.
 // file 対象のConfEnvファイル内容を設定します.
 const flushConfEnv = function(file) {
+    if(file instanceof Buffer) {
+        file = file.toString();
+    }
     if(typeof(file) != "string") {
         throw new Error("file content does not exist.")
     }
@@ -133,7 +139,7 @@ const flushConfEnv = function(file) {
             file[k] == null || file[k] == undefined) {
             continue;
         }
-        prodess.env[k] = file[k];
+        process.env[k] = file[k];
     }
 }
 
@@ -170,14 +176,11 @@ const getConfEnvNameType = function(name, extension) {
 // key 対象のキーコードを設定します.
 // pass 対象のパスコードを設定します.
 const loadConfEnv = function(fileName, key, pass) {
-    if(fileName == undefined || fileName == null) {
-        throw new Error("File name not set.");
-    }
     // ファイル名が存在しない/ファイルが存在しない場合
     // 環境変数から取得.
     if(getConfEnvNameType(fileName) == -1) {
         // 環境変数から取得.
-        fileName = process.env[cons.ENV_TO_CONF_ENV_NAME];
+        fileName = util.getEnv(cons.ENV_TO_CONF_ENV_NAME);
         if(getConfEnvNameType(fileName) == -1) {
             // カレントにあるconfenv定義を取得.
             fileName = cons.DEF_CONF_ENV_NAME;
@@ -191,13 +194,13 @@ const loadConfEnv = function(fileName, key, pass) {
     if(isFile(fileName + CIPHER_EXTENSION)) {
         // 暗号キーやパスが存在しない場合環境変数から取得.
         if(typeof(key) != "string" || typeof(pass) != "string") {
-            key = process.env[cons.ENV_CIPHER_KEY];
-            pass = process.env[cons.ENV_CIPHER_PASS];
+            key = util.getEnv(cons.ENV_CIPHER_KEY);
+            pass = util.getEnv(cons.ENV_CIPHER_PASS);
         }
         const file = loadFile(fileName + CIPHER_EXTENSION);
         file = decodeCipher(file, key, pass);
         flushConfEnv(file);
-    // confEnvが存在する場合.
+    // 非暗号化のconfEnvが存在する場合.
     } else if(isFile(fileName + DEF_EXTENSION)) {
         const file = loadFile(fileName + DEF_EXTENSION);
         flushConfEnv(file);
@@ -223,7 +226,7 @@ const encodeCipherConfEnv = function(fileName, key, pass) {
     // 環境変数から取得.
     if(getConfEnvNameType(fileName, DEF_EXTENSION) == -1) {
         // 環境変数から取得.
-        fileName = process.env[cons.ENV_TO_CONF_ENV_NAME];
+        fileName = util.getEnv(cons.ENV_TO_CONF_ENV_NAME);
         if(getConfEnvNameType(fileName, DEF_EXTENSION) == -1) {
             // カレントにあるconfenv定義を取得.
             fileName = cons.DEF_CONF_ENV_NAME;
@@ -236,8 +239,8 @@ const encodeCipherConfEnv = function(fileName, key, pass) {
     let file = loadFile(fileName + DEF_EXTENSION);
     // 暗号キーやパスが存在しない場合環境変数から取得.
     if(typeof(key) != "string" || typeof(pass) != "string") {
-        key = process.env[cons.ENV_CIPHER_KEY];
-        pass = process.env[cons.ENV_CIPHER_PASS];
+        key = util.getEnv(cons.ENV_CIPHER_KEY);
+        pass = util.getEnv(cons.ENV_CIPHER_PASS);
     }
 
 
@@ -263,7 +266,7 @@ const decodeCipherConfEnv = function(fileName, key, pass) {
     // 環境変数から取得.
     if(getConfEnvNameType(fileName, CIPHER_EXTENSION) == -1) {
         // 環境変数から取得.
-        fileName = process.env[cons.ENV_TO_CONF_ENV_NAME];
+        fileName = util.getEnv(cons.ENV_TO_CONF_ENV_NAME);
         if(getConfEnvNameType(fileName, CIPHER_EXTENSION) == -1) {
             // カレントにあるconfenv定義を取得.
             fileName = cons.DEF_CONF_ENV_NAME;
@@ -276,8 +279,8 @@ const decodeCipherConfEnv = function(fileName, key, pass) {
     let file = loadFile(fileName + CIPHER_EXTENSION);
     // 暗号キーやパスが存在しない場合環境変数から取得.
     if(typeof(key) != "string" || typeof(pass) != "string") {
-        key = process.env[cons.ENV_CIPHER_KEY];
-        pass = process.env[cons.ENV_CIPHER_PASS];
+        key = util.getEnv(cons.ENV_CIPHER_KEY);
+        pass = util.getEnv(cons.ENV_CIPHER_PASS);
     }
     // 復号化.
     file = decodeCipher(file, key, pass);

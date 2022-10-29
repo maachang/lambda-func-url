@@ -441,8 +441,9 @@ const returnResponse = function(
     if(noBody != true) {
         // レスポンスBodyが存在する場合セット.
         if(body != undefined && body != null) {
+            const tof = typeof(body);
             // 文字列返却.
-            if(typeof(body) == "string") {
+            if(tof == "string") {
                 // コンテンツタイプが設定されていない場合.
                 if(headerObject["content-type"] == undefined) {
                     headerObject["content-type"] = getMimeType("text").type;
@@ -464,7 +465,7 @@ const returnResponse = function(
                     headerObject["content-type"] = mime.OCTET_STREAM;
                 }
             // json返却.
-            } else if(body instanceof Object) {
+            } else if(tof == "object") {
                 body = JSON.stringify(body);
                 // コンテンツタイプが設定されていない場合.
                 if(headerObject["content-type"] == undefined) {
@@ -863,20 +864,31 @@ const start = function(event, filterFunc, originMime) {
         event.rawPath == "/~clearRequireCache") {
         // キャッシュクリア.
         if(event.rawPath == "/~clearRequireCache") {
+            // git requireキャッシュ削除.
             if(_g["grequire"] != undefined) {
                 _g["grequire"].clearCache();
             }
+            // s3 requireキャッシュ削除.
             if(_g["s3require"] != undefined) {
                 _g["s3require"].clearCache();
             }
+            // lambda requireキャッシュ削除.
             _g["frequire"].clearCache();
+            // 通常requireキャッシュ削除.
+            for(let k in require) {
+                delete require[k];
+            }
         }
         // ping用function返却.
         return async function() {
-            return {
-                "statusCode": 200,
-                "body": "{\"result\": \"ok\"}"
-            }
+            // レスポンス出力.
+            return returnResponse(
+                200, // status.
+                {}, // headers.
+                [], // cookies.
+                // body.
+                {result: "ok"}
+            );
         }
     }
 

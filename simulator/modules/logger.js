@@ -38,10 +38,11 @@ let baseLogOutFile = null;
 // 環境変数からログ初期処理.
 const getEnv = function() {
     const cons = require("../constants.js");
+    const util = require("./util/util.js");
     // 環境変数から条件を取得.
-    const dir = process.env[cons.ENV_LOGGER_DIR];
-    const name = process.env[cons.ENV_LOGGER_NAME];
-    const level = process.env[cons.ENV_LOGGER_LEVEL];
+    const dir = util.getEnv(cons.ENV_LOGGER_DIR);
+    const name = util.getEnv(cons.ENV_LOGGER_NAME);
+    const level = util.getEnv(cons.ENV_LOGGER_LEVEL);
     return {
         dir: dir, file: name, level: level
     };
@@ -128,7 +129,11 @@ const setting = function(options) {
     file = file.trim();
     // ディレクトリ名が存在しない場合は作成
     if(!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
+        // cluster起動の場合エラーが出る場合があるので
+        // 例外を出さない.
+        try {
+            fs.mkdirSync(dir);
+        } catch(e) {};
     }
     // ディレクトリ名の最後に "/" が存在する場合.
     if(dir.endsWith("/")) {

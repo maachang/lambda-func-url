@@ -10,7 +10,7 @@
 //       "${環境変数名}"
 //       また対象の`環境変数名`が存在しない場合は変換されません.
 // 戻り値: 変換された結果が返却されます.
-exports.changeEnv = function(value) {
+const changeEnv = function(value) {
     if(value.indexOf("${") == -1) {
         return value;
     }
@@ -25,5 +25,18 @@ exports.changeEnv = function(value) {
     }
     return value;
 }
+exports.changeEnv = changeEnv;
+
+// getEnv処理.
+// name ENV名を設定します.
+// 戻り値: Env要素が返却されます.
+const getEnv = function(name) {
+    const value = process.env[name];
+    if(typeof(value) == "string") {
+        return changeEnv(value);
+    }
+    return undefined;
+}
+exports.getEnv = getEnv;
 
 })(global);
