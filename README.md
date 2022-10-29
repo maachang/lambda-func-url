@@ -176,10 +176,23 @@ const originMime = undefined;
    request Httpリクエスト情報.<br>
    戻り値: true / false(boolean).<br>
           trueの場合filter処理で処理終了となります.<br>
+  また、環境変数 `FILTER_FUNCTION`でも設定が可能.
 
 2. originMime<br>
   拡張MimeTypeを設定.<br>
   function(extends)が必要で、拡張子の結果に対して戻り値が {type: mimeType, gz: boolean}を返却する必要がある(対応しない場合は undefinedで設定しない).
+  また、環境変数 `ORIGIN_MIME`でも設定が可能.
+
+これら定義に対して `環境変数` で定義する場合は `exports` で返却が必要(require系呼び出し).
+なので、この場合は以下のような形での実装が必要となる.
+
+~~~javascript
+exports["function"] = function(out, resState, resHeader, request) {
+    return false;
+}
+~~~
+
+このように `exports` の返却条件に `["function"]` を設定する必要があるので注意.
 
 ## LFUの内部で利用されるメインのパラメータについて
 
@@ -285,13 +298,13 @@ LFU では、以下`環境変数` の設定が必要条件となっている.
 
 - `FILTER_FUNCTION`<br>
   [環境変数]filterFunc読み込み先を指定.<br>
-  この条件はexrequire(getEnv(_ENV_FILTER_FUNCTION), true, "")で取得されます(カレントパスなし、キャッシュなし).<br>
+  この条件はexrequire(getEnv("FILTER_FUNCTION"), true, "")で取得されます(カレントパスなし、キャッシュなし).<br>
   また `start` メソッドで渡された場合は、そちらが優先となります.<br>
   この環境変数によって、ターゲットとなるストレージでfilterFuncが実装できます(Lambda側の実装に定義する必要がない).<br>
 
 - `ORIGIN_MIME`<br>
   [環境変数]originMime読み込み先を指定.<br>
-  この条件はexrequire(getEnv(_ENV_ORIGIN_MIME), true, "")で取得されます(カレントパスなし、キャッシュなし).<br>
+  この条件はexrequire(getEnv("ORIGIN_MIME"), true, "")で取得されます(カレントパスなし、キャッシュなし).<br>
   また `start` メソッドで渡された場合は、そちらが優先となります.<br>
   この環境変数によって、ターゲットとなるストレージでoriginMimeが実装できます(Lambda側の実装に定義する必要がない).<br>
 

@@ -181,7 +181,8 @@ const sendError = function(res, status, headers, err) {
         headers["content-type"] = "text/plain";
         // 送信処理.
         sendResponse(res, status, undefined,
-            headers, undefined, "error " + status);
+            headers, undefined, "error " + status +
+                " Internal Server Error");
     } catch(e) {
         // エラーをデバッグ出力.
         console.debug(
@@ -470,7 +471,7 @@ const startupServer = function() {
     // タイムアウトセット.
     server.setTimeout(TIMEOUT);
 
-    // キープアライブタイムアウトをセット.
+    // [HTTP]キープアライブタイムアウトをセット.
     server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT;
 
     // maxHeadersCountはゼロにセット.
@@ -478,7 +479,9 @@ const startupServer = function() {
 
     // http.socketオプションを設定.
     server.on("connection", function(socket) {
+        // Nagle アルゴリズムを使用する.
         socket.setNoDelay(true);
+        // tcp keepAliveを不許可.
         socket.setKeepAlive(false, 0);
     });
 

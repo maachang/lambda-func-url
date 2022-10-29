@@ -2,6 +2,9 @@
 // simurator向けの偽regreg.
 // - s3require関連のローカル実装.
 // - grequire関連のローカル実装.
+//
+// ※ この実装によって、LFUSetup.jsでのs3requireや
+// grequireの処理を呼び出さないようにする.
 ////////////////////////////////////////////////
 (function(_g) {
 'use strict';

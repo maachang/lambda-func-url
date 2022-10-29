@@ -16,6 +16,28 @@ const httpStatus = frequire("./lib/httpStatus.js");
 // HTTPヘッダ.
 const httpHeader = frequire("./lib/httpHeader.js");
 
+// filterFunction呼び出し処理.
+// コンテンツ呼び出しの前処理を行い、コンテンツ利用に対して
+// 制御することができます.
+//
+// この値がundefinedの場合、処理されません.
+var _filterFunction = undefined;
+
+// 拡張MimeType判別処理.
+// function(extends)が必要で、拡張子の結果に対して
+// 戻り値が {type: mimeType, gz: boolean}を返却する
+// 必要があります(非対応の場合は undefined).
+//
+// この値がundefinedの場合、処理されません.
+var _originMimeFunc = undefined;
+
+// requestFunction呼び出し処理.
+// 環境変数に従って専用のfunction(jsFlag, path)の
+// Functionが作成される.
+// jsFlag 実行するJavascriptを取得する場合は true.
+// path 対象のパスを設定.
+var _requestFunction = undefined;
+
 // エラー例外処理.
 // message　エラーメッセージを設定します.
 const error = function(message) {
@@ -281,13 +303,6 @@ const analysisEnv = function() {
     };
 }
 
-// requestFunction呼び出し処理.
-// 環境変数に従って専用のfunction(jsFlag, path)の
-// Functionが作成される.
-// jsFlag 実行するJavascriptを取得する場合は true.
-// path 対象のパスを設定.
-var _requestFunction = undefined;
-
 // request呼び出し・require呼び出し処理のFunction登録.
 // env analysisEnvで取得した環境変数の内容が設定されます.
 // 
@@ -336,21 +351,6 @@ const regRequestRequireFunc = function(env) {
     }
 }
 
-// filterFunction呼び出し処理.
-// コンテンツ呼び出しの前処理を行い、コンテンツ利用に対して
-// 制御することができます.
-//
-// この値がundefinedの場合、処理されません.
-var _filterFunction = undefined;
-
-// 拡張MimeType判別処理.
-// function(extends)が必要で、拡張子の結果に対して
-// 戻り値が {type: mimeType, gz: boolean}を返却する
-// 必要があります(非対応の場合は undefined).
-//
-// この値がundefinedの場合、処理されません.
-var _originMimeFunc = undefined;
-
 // mimeType情報を取得.
 // AWS Lambdaで最低限のMimeTypeと、ユーザ指定の
 // MimeType定義の評価結果が返却されます.
@@ -364,7 +364,8 @@ const getMimeType = function(extention) {
         // 環境変数に定義されてる場合それを利用.
         const path = getEnv(_ENV_ORIGIN_MIME);
         if(path != undefined) {
-            _originMimeFunc = exrequire(path, true, "");
+            _originMimeFunc = exrequire(path, true, "")
+                ["function"];
         }
     }
     let ret = undefined;
@@ -699,8 +700,9 @@ const main_handler = async function(event, context) {
         if(_filterFunction == undefined) {
             // 環境変数で定義されている場合はそれをロード.
             const path = getEnv(_ENV_FILTER_FUNCTION);
-            if(path != undefined) {
-                _filterFunction = exrequire(path, true, "");
+            if(typeof(path) == "string") {
+                _filterFunction = exrequire(path, true, "")
+                    ["function"];
             }
         }
 
