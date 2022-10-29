@@ -5,9 +5,10 @@
 'use strict';
 
 // 定数定義.
-const cons = require("./constants.js");
-
 const http = require("http");
+
+const cons = require("./constants.js");
+const util = require("./modules/util/util.js");
 
 // HTTPサーバ名.
 const SERVER_NAME = "" + cons.NAME +
@@ -97,6 +98,28 @@ const setCrosHeader = function(headers) {
     headers['access-control-allow-methods'] = 'GET, POST';
 }
 
+// デフォルト設定ヘッダをセット.
+// headers 対象のHTTPヘッダ(Object型)を設定します.
+// 戻り値: Objectが返却されます.
+const setDefaultHeader = function(headers) {
+    // キャッシュなし返却.
+    setNoneCacheHeader(headers);
+
+    // cros許可条件を取得.
+    let cros = util.getEnv(cons.ENV_HTTP_CROS_MODE);
+    if(cros == undefined || cros == null) {
+        cros = "false";
+    } else {
+        cros = cros.trim().toLowerCase();
+    }
+    // cros許可.
+    if(cros == "true") {
+        // cros返却.
+        setCrosHeader(headers);
+    }
+}
+
+
 // レスポンス返却.
 // res 対象のHTTPレスポンスオブジェクトが設定されます.
 // status Httpステータスが設定されます.
@@ -127,10 +150,10 @@ const sendResponse = function(
     // 書き込み処理.
     if(typeof(message) == "string") {
         res.writeHead(status, message,
-            setNoneCacheHeader(headers));
+            setDefaultHeader(headers));
     } else {
         res.writeHead(status,
-            setNoneCacheHeader(headers));
+            setDefaultHeader(headers));
     }
     res.end(body);
 }

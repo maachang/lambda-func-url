@@ -36,6 +36,10 @@ exports.ENV_FAKE_GITHUB_PATH = "LFU_FAKE_GITHUB_PATH";
 // 拡張子を除いて設定.
 exports.ENV_TO_CONF_ENV_NAME = "LFU_ENV_CONF";
 
+// [環境変数]httpCrosアクセス許可.
+// "true" で許可.
+exports.ENV_HTTP_CROS_MODE = "LFU_HTTP_CROS_MODE";
+
 // [環境変数]lfuコンフィグを暗号・復号するキー条件のKey条件.
 exports.ENV_CIPHER_KEY = "LFU_CIPHOER_KEY";
 
