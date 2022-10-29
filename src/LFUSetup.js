@@ -58,6 +58,30 @@ const arrayToMap = function(keys, array) {
     return ret;
 }
 
+// LFUのrequire系キャッシュを削除.
+const clearRequireCache = function() {
+    // git requireキャッシュ削除.
+    if(_g["grequire"] != undefined) {
+        try {
+            // エラー無視.
+            _g["grequire"].clearCache();
+        } catch(e) {}
+    }
+    // s3 requireキャッシュ削除.
+    if(_g["s3require"] != undefined) {
+        try {
+            // エラー無視.
+            _g["s3require"].clearCache();
+        } catch(e) {}
+    }
+    // lambda requireキャッシュ削除.
+    _g["frequire"].clearCache();
+    // 通常requireキャッシュ削除.
+    for(let k in require) {
+        delete require[k];
+    }
+}
+
 //--------------------------------------------------------
 // [環境変数]定義.
 //--------------------------------------------------------
@@ -864,26 +888,7 @@ const start = function(event, filterFunc, originMime) {
         event.rawPath == "/~clearRequireCache") {
         // キャッシュクリア.
         if(event.rawPath == "/~clearRequireCache") {
-            // git requireキャッシュ削除.
-            if(_g["grequire"] != undefined) {
-                try {
-                    // エラー無視.
-                    _g["grequire"].clearCache();
-                } catch(e) {}
-            }
-            // s3 requireキャッシュ削除.
-            if(_g["s3require"] != undefined) {
-                try {
-                    // エラー無視.
-                    _g["s3require"].clearCache();
-                } catch(e) {}
-            }
-            // lambda requireキャッシュ削除.
-            _g["frequire"].clearCache();
-            // 通常requireキャッシュ削除.
-            for(let k in require) {
-                delete require[k];
-            }
+            clearRequireCache();
         }
         // ping用function返却.
         return async function() {
