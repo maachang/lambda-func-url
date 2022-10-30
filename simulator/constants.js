@@ -16,6 +16,10 @@ exports.VERSION = pkg.version;
 // 説明.
 exports.DESCRIPTION = pkg.description;
 
+// HTTPサーバ名.
+exports.SERVER_NAME = "" + exports.NAME +
+    "(" + exports.VERSION + ")";
+
 // [http]バインドポート番号.
 exports.BIND_PORT = 3456;
 

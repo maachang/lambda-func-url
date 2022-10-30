@@ -398,10 +398,6 @@ const getObject = async function(
 // bucket 対象のS3バケット名を設定します.
 // key 対象のS3キー名を設定します.
 // credential AWSクレデンシャルを設定します.
-// 戻り値: メダデータが返却されます.
-//        {lastModified: string, size: number}
-//        - lastModified 最終更新日が返却されます.
-//        - size オブジェクトサイズが返却されます.
 const headObject = async function(
     response, region, bucket, key, credential) {
     if(typeof(key) != "string" || key.length == 0) {
@@ -434,19 +430,6 @@ const headObject = async function(
         header: header,
         response: response
     });
-
-    // レスポンスステータスが400以上の場合.
-    if(response.status >= 400) {
-        // 空返却.
-        return {};
-    }
-
-    // メタ情報を返却.
-    const h = result.header;
-    return {
-        "lastModified": h["last-modified"],
-        "size": parseInt(h["content-length"])
-    };
 }
 
 // 指定S3バケット+プレフィックスのリストを取得.

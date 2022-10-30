@@ -180,10 +180,10 @@ const originMime = undefined;
 
 2. originMime<br>
   拡張MimeTypeを設定.<br>
-  function(extends)が必要で、拡張子の結果に対して戻り値が {type: mimeType, gz: boolean}を返却する必要がある(対応しない場合は undefinedで設定しない).
+  function(extends)が必要で、拡張子の結果に対して戻り値が {type: mimeType, gz: boolean}を返却する必要がある(対応しない場合は undefinedで設定しない).<br>
   また、環境変数 `ORIGIN_MIME`でも設定が可能.
 
-これら定義に対して `環境変数` で定義する場合は `exports` で返却が必要(require系呼び出し).
+これら定義に対して `環境変数` で定義する場合は `exports` で返却が必要(require系呼び出し).<br>
 なので、この場合は以下のような形での実装が必要となる.
 
 ~~~javascript

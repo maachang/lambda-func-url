@@ -4,16 +4,6 @@
 (function(_g) {
 'use strict';
 
-// 定数定義.
-const http = require("http");
-
-const cons = require("./constants.js");
-const util = require("./modules/util/util.js");
-
-// HTTPサーバ名.
-const SERVER_NAME = "" + cons.NAME +
-    "(" + cons.VERSION + ")";
-
 // サーバータイムアウト(30秒).
 const TIMEOUT = 30 * 1000;
 
@@ -25,6 +15,52 @@ let lfuFile = null;
 
 // bindPort.
 let bindPort = null;
+
+// lfuライブラリ.
+let cons;
+let util;
+
+// lfuライブラリをロード.
+const loadLfuLibrary = function() {
+    // lffwebで利用するライブラリを再読み込み.
+    cons = require("./constants.js");
+    util = require("./modules/util/util.js");            
+}
+
+// lfuライブラリをロード.
+loadLfuLibrary();
+
+// LFUのrequire系キャッシュを削除.
+const clearRequireCache = function() {
+    // git requireキャッシュ削除.
+    if(_g["grequire"] != undefined) {
+        try {
+            // エラー無視.
+            _g["grequire"].clearCache();
+        } catch(e) {}
+    }
+    // s3 requireキャッシュ削除.
+    if(_g["s3require"] != undefined) {
+        try {
+            // エラー無視.
+            _g["s3require"].clearCache();
+        } catch(e) {}
+    }
+    // lambda requireキャッシュ削除.
+    if(_g["frequire"] != undefined) {
+        try {
+            _g["frequire"].clearCache();
+        } catch(e) {}
+    }
+    // 通常requireキャッシュ削除.
+    const cache = require.cache;
+    for(let k in cache) {
+        delete cache[k];
+    }
+
+    // lfuライブラリをロード.
+    loadLfuLibrary();
+}
 
 // queryパラメータを取得.
 // req HTTPリクエストを設定します.
@@ -70,7 +106,9 @@ const getIp = function(request) {
 }
 
 // URLパスを取得.
-var getPath = function (req) {
+// req 対象のrequestを設定します.
+// 戻り値: URLパスが返却されます.
+var getUrlPath = function (req) {
     var u = req.url;
     var p = u.indexOf("?");
     if (p == -1) {
@@ -136,7 +174,7 @@ const sendResponse = function(
         headers["content-length"] = Buffer.byteLength(body);
     }
     // 必要な内容をセット.
-    headers["server"] = SERVER_NAME;
+    headers["server"] = cons.SERVER_NAME;
     headers["date"] = new Date().toISOString();
     // cookieが存在する場合.
     if(Array.isArray(cookies) && cookies.length > 0) {
@@ -264,7 +302,7 @@ const lufDone = function(exitFlag, res, fail, success) {
 // req Httpリクエストオブジェクトを設定します.
 // 戻り値: Lfuイベントが返却されます.
 const getEvent = function(req, body) {
-    const path = getPath(req);
+    const path = getUrlPath(req);
     const ip = getIp(req);
     const now = new Date();
     // LambdaFunctionUrlsに渡す
@@ -361,8 +399,6 @@ const callLfu = async function(req, res, body) {
     try {
         // 基本イベントをセット.
         const event = getEvent(req, body);
-        // キャッシュクリア.
-        delete require.cache[lfuFile];
         // require呼び出し.
         const index = require(lfuFile);
         // 存在しない場合はエラー.
@@ -462,11 +498,16 @@ const httpRequest = function(req, res) {
 // サーバー起動.
 const startupServer = function() {
     // サーバー生成.
-    var server = http.createServer(
-        function (req, res) {
-            httpRequest(req, res);
-        }
-    );
+    var server = require("http")
+        .createServer(
+            function (req, res) {
+                // 全requireキャッシュのクリア
+                //  （simulatorなので毎回削除).
+                clearRequireCache();
+                // httpRequestを受信処理.
+                httpRequest(req, res);
+            }
+        );
 
     // タイムアウトセット.
     server.setTimeout(TIMEOUT);

@@ -98,10 +98,12 @@ const getGithubObjectToPath = function(
 }
 
 // 対象Githubリポジトリ内のオブジェクトを取得.
+// method 対象のメソッドを設定します.
 // path 対象のpathを設定します.
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
-// 戻り値: HTTPレスポンスBodyが返却されます.
-const getGithubObject = async function(path, token) {
+// 戻り値: methodがHEADの場合、レスポンスが返却されます.
+//        それ以外の場合は、HTTPレスポンスBodyが返却されます.
+const getGithubObject = async function(method, path, token) {
     // デフォルトヘッダを設定.
     const header = {
         "X-Header": "X-Header"
@@ -115,25 +117,29 @@ const getGithubObject = async function(path, token) {
     const response = {};
     // オプションを設定.
     const options = {
-        method: "GET",
+        method: method,
         header: header,
-        response
+        response: response
     }
     // リクエスト問い合わせ.
-    const ret = await httpsClient.request(
+    const body = await httpsClient.request(
         GITHUB_CONTENT_HOST,
         path,
         options
     );
+    // methodがHEADの場合.
+    if(method == "HEAD") {
+        // レスポンスを返却.
+        return response;
     // レスポンスステータスが400を超える場合.
-    if(response.status >= 400) {
+    } else if(response.status >= 400) {
         // ステータス入りエラー返却.
         throw httpStatus.httpError(response.status,
             "error " + response.status +
             " path: " + path);
     }
-    // 正常終了.
-    return ret;
+    // methodがHEAD以外の場合body返却.
+    return body;
 }
 
 // 対象Githubリポジトリ内のJavascriptをロード..
@@ -141,7 +147,7 @@ const getGithubObject = async function(path, token) {
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
 // 戻り値: HTTPレスポンスBodyが返却されます.
 const getGithubObjectToJs = function(path, token) {
-    return getGithubObject(path, token)
+    return getGithubObject("GET", path, token)
     .then((body) => {
         return body.toString();
     });
@@ -160,7 +166,6 @@ let _DEFAULT_BRANCH = null;
 // organization githubのorganization を設定します.
 // repo githubのrepogitory を設定します.
 // branch 対象のbranch を設定します.
-// path 対象のpath を設定します.
 const setDefault = function(organization, repo, branch) {
     _checkConnectGithub(organization, repo, branch);
     _DEFAULT_ORGANIZATION = organization;
@@ -206,7 +211,8 @@ let _CACHE_TIMEOUT = 30000;
 let _NONE_CACHE = false;
 
 // オプション設定.
-// option {timeout: number} キャッシュタイムアウトを設定します.
+// option {currentPath: string} カレントパスを設定します.
+//        {timeout: number} キャッシュタイムアウトを設定します.
 //        {noneCache: boolean} 未キャッシュ条件を設定します.
 // 戻り値 exports と同等の内容が戻されます.
 const setOptions = function(option) {
@@ -366,7 +372,26 @@ const gcontents = function(path, currentPath) {
     const gpath = getGithubObjectToPath(
         organization, repo, branch, currentPath, path);
     // githubからコンテンツ(binary)を返却.
-    return getGithubObject(gpath, 
+    return getGithubObject("GET", gpath, 
+        getOrganizationToken(organization));
+}
+
+// github情報を設定してコンテンツのヘッダ情報を取得.
+// path [必須]対象のpath を設定します.
+// currentPath [任意]カレントパスを設定します.
+// 戻り値: promiseが返却されます.
+const ghead = function(path, currentPath) {
+    const organization = _DEFAULT_ORGANIZATION;
+    const repo = _DEFAULT_REPO;
+    const branch = _DEFAULT_BRANCH;
+    if(!useString(currentPath)) {
+        currentPath = _CURRENT_PATH
+    }
+    // githubObject用のPathを取得.
+    const gpath = getGithubObjectToPath(
+        organization, repo, branch, currentPath, path);
+    // githubからコンテンツ(binary)を返却.
+    return getGithubObject("HEAD", gpath, 
         getOrganizationToken(organization));
 }
 
@@ -387,6 +412,9 @@ const init = function() {
     // gcontentsをglobalに登録(書き換え禁止).
     Object.defineProperty(_g, "gcontents",
         {writable: false, value: gcontents});
+    // gheadをglobalに登録(書き換え禁止).
+    Object.defineProperty(_g, "ghead",
+        {writable: false, value: ghead});
 
     // exportsを登録.
     grequire.exports = {

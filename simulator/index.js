@@ -73,11 +73,11 @@ if(cluster.isMaster) {
 // ユーティリティ.
 const util = require("./modules/util/util.js");
 
-// lfuPath.
-let lfuPath = null;
-
 // constants.
 const cons = require("./constants.js");
+
+// lfuPath.
+let lfuPath = null;
 
 // confEnvをロード.
 const loadConfEnv = function() {
@@ -138,6 +138,7 @@ const loadLogger = function() {
 const loadInit = function() {
     // confEnvをロード.
     loadConfEnv();
+    
     // ログ初期化.
     loadLogger();
 }

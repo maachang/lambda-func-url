@@ -5,6 +5,9 @@
 //
 // ※ この実装によって、LFUSetup.jsでのs3requireや
 // grequireの処理を呼び出さないようにする.
+//
+// またこのrequireでは、キャッシュしない.
+// 理由はシミュレーター環境のため.
 ////////////////////////////////////////////////
 (function(_g) {
 'use strict';
@@ -12,7 +15,10 @@
 // nodejs library.
 const vm = require('vm');
 const fs = require('fs');
-const util = require("./modules/util/util.js")
+
+// lfusim library.
+const util = require("./modules/util/util.js");
+const cons = require("./constants.js");
 
 // 偽S3のメインパス.
 let fakeS3Path = null;
@@ -58,13 +64,52 @@ const isFile = function(name) {
 
 // ファイルを詠み込む.
 // name 対象のファイル名を設定します.
-// 戻り値: ファイル内容がstringで返却されます.
+// 戻り値: ファイル内容がBufferで返却されます.
 //        存在しない場合は null が返却されます.
 const readFile = function(name) {
     if(isFile(name)) {
         return fs.readFileSync(name);
     }
     return null;
+}
+
+// stat情報を読み込む.
+// name 対象のファイル名を設定します.
+// 戻り値: stat情報が返却されます.
+//        存在しない場合は null が返却されます.
+const readStat = function(name) {
+    if(isFile(name)) {
+        return fs.statSync(name);
+    }
+    return null;
+}
+
+// sha256変換.
+// key 対象のキー.
+// returnMode digestにわたす引数(string).
+// 戻り値 変換結果(returnModeに依存)
+const sha256 = function(key, returnMode) {
+    return crypto.createHash('sha256')
+        .update(key).digest(returnMode);
+}
+
+// 対象条件からetagを作成.
+// mainPath メインパスを設定します.
+// currentPath カレントパス名を設定します.
+// name ファイル名を設定します.
+// fileLen ファイル長を設定します.
+// fileTime 最終更新時間を設定します.
+// 戻り値: sha256(base64)で返却します.
+const getEtag = function(
+    mainPath, currentPath, name, fileLen, fileTime) {
+    return sha256(
+        mainPath + "\n" +
+        currentPath + "\n" +
+        name + "\n" +
+        fileLen + "\n" +
+        fileTime,
+        "base64"
+    )
 }
 
 // originRequire読み込みスクリプトheader.
@@ -158,6 +203,49 @@ const fakeContents = function(mainPath, currentPath, name) {
     return ret;
 }
 
+// [偽]ローカルhead取得.
+// mainPath 対象のメインパスを設定します.
+// currentPath 対象のカレントパスを設定します.
+// name head先のファイルを取得します.
+// 戻り値: response形式の内容が返却されます.
+const fakeHead = function(mainPath, currentPath, name) {
+    // ファイル名を整形.
+    const contentsName = trimPath(
+        false, mainPath, currentPath, name);
+    // stat情報を取得.
+    const stat = readStat(contentsName);
+    if(ret == null) {
+        // 404エラー返却.
+        // headerは空.
+        return {
+            status: 404,
+            header: {
+                "server": cons.SERVER_NAME,
+                "date": new Date().toISOString()
+            }
+        }
+    }
+    // ファイル長を取得.
+    const fileLen = stat.size;
+    // ファイル最終更新時間を取得.
+    const fileTime = stat.mtime;
+    // etagを作成.
+    const etag = getEtag(
+        mainPath, currentPath, name, fileLen, 
+        fileTime.getTime());
+    // レスポンス返却.
+    return {
+        status: 200,
+        header: {
+            "server": cons.SERVER_NAME,
+            "date": new Date().toISOString(),
+            "content-length": "" + fileLen,
+            "last-modified": fileTime.toISOString(),
+            "etag": etag
+        }
+    };
+}
+
 // s3requireを登録.
 // path require先のファイルを取得します.
 // currentPath 対象のカレントパスを設定します.
@@ -180,6 +268,18 @@ const s3contents = function(path, currentPath) {
             "Permission to use the s3 environment has not been set.");
     }
     return fakeContents(fakeS3Path, currentPath, path);
+}
+
+// s3headを登録.
+// path contains先のファイルを取得します.
+// currentPath 対象のカレントパスを設定します.
+// 戻り値: response情報が返却されます.
+const s3head = function(path, currentPath) {
+    if(fakeS3Path == null) {
+        throw new Error(
+            "Permission to use the s3 environment has not been set.");
+    }
+    return fakeHead(fakeS3Path, currentPath, path);
 }
 
 // [s3require]偽exportsを登録.
@@ -209,6 +309,18 @@ const gcontents = function(path, currentPath) {
             "Permission to use the github environment has not been set.");
     }
     return fakeContents(fakeGitPath, currentPath, path);
+}
+
+// gheadを登録.
+// path contains先のファイルを取得します.
+// currentPath 対象のカレントパスを設定します.
+// 戻り値: response情報が返却されます.
+const ghead = function(path, currentPath) {
+    if(fakeGitPath == null) {
+        throw new Error(
+            "Permission to use the github environment has not been set.");
+    }
+    return fakeHead(fakeGitPath, currentPath, path);
 }
 
 // [grequire]偽exportsの偽設定を登録.
@@ -265,10 +377,14 @@ const init = function() {
         {writable: false, value: s3require});
     Object.defineProperty(_g, "s3contents",
         {writable: false, value: s3contents});
+    Object.defineProperty(_g, "s3head",
+        {writable: false, value: s3head});
     Object.defineProperty(_g, "grequire",
         {writable: false, value: grequire});
     Object.defineProperty(_g, "gcontents",
         {writable: false, value: gcontents});
+    Object.defineProperty(_g, "ghead",
+        {writable: false, value: ghead});
 }
 
 // 初期化設定を行って `frequire` をgrobalに登録.

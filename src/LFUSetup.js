@@ -21,7 +21,7 @@ const httpHeader = frequire("./lib/httpHeader.js");
 // 制御することができます.
 //
 // この値がundefinedの場合、処理されません.
-var _filterFunction = undefined;
+let _filterFunction = undefined;
 
 // 拡張MimeType判別処理.
 // function(extends)が必要で、拡張子の結果に対して
@@ -29,14 +29,23 @@ var _filterFunction = undefined;
 // 必要があります(非対応の場合は undefined).
 //
 // この値がundefinedの場合、処理されません.
-var _originMimeFunc = undefined;
+let _originMimeFunc = undefined;
 
 // requestFunction呼び出し処理.
 // 環境変数に従って専用のfunction(jsFlag, path)の
 // Functionが作成される.
 // jsFlag 実行するJavascriptを取得する場合は true.
 // path 対象のパスを設定.
-var _requestFunction = undefined;
+// 戻り値: jsFlag = true js情報
+//        jsFlag = fale コンテンツ情報
+let _requestFunction = undefined;
+
+// requestHead呼び出し処理.
+// 環境変数に従って専用のfunction(path)のFunctionが
+// 作成される.
+// path 対象のパスを設定.
+// 戻り値: response情報.
+let _requestHeadFunc = undefined;
 
 // エラー例外処理.
 // message　エラーメッセージを設定します.
@@ -97,10 +106,16 @@ const clearRequireCache = function() {
         } catch(e) {}
     }
     // lambda requireキャッシュ削除.
-    _g["frequire"].clearCache();
+    if(_g["frequire"] != undefined) {
+        try {
+            _g["frequire"].clearCache();
+        } catch(e) {}
+    }
+
     // 通常requireキャッシュ削除.
-    for(let k in require) {
-        delete require[k];
+    const cache = require.cache;
+    for(let k in cache) {
+        delete cache[k];
     }
 }
 
@@ -323,6 +338,11 @@ const regRequestRequireFunc = function(env) {
             return _g.s3contents(path, env.requestPath);
         };
 
+        // s3用のhead処理.
+        _requestHeadFunc = function(path) {
+            return _g.s3head(path, env.requestPath);
+        }
+
         // s3内で利用するrequire処理.
         _g.exrequire = function(path, noneCache, curerntPath) {
             return _g.s3require(path, curerntPath, noneCache);
@@ -340,6 +360,11 @@ const regRequestRequireFunc = function(env) {
             return _g.gcontents(path,
                 env.requestPath);
         };
+
+        // github用のhead処理.
+        _requestHeadFunc = function(path) {
+            return _g.ghead(path, env.requestPath);
+        }
 
         // github内で利用するrequire処理
         _g.exrequire = function(
