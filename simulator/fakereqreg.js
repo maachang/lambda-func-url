@@ -84,11 +84,25 @@ const readStat = function(name) {
     return null;
 }
 
+// 後ろの`=`が続く限り削除.
+// value 対象の文字列を設定します.
+// 戻り値 後ろの`=`を削除します.
+const cutBeforeEq = function(value) {
+    const len = value.length;
+    for(let i = len - 1; i >= 0; i --) {
+        if(value.charAt(i) != "=") {
+            return value.substring(0, i + 1);
+        }
+    }
+    return "";
+}
+
 // sha256変換.
 // key 対象のキー.
 // returnMode digestにわたす引数(string).
 // 戻り値 変換結果(returnModeに依存)
 const sha256 = function(key, returnMode) {
+    const crypto = require('crypto');
     return crypto.createHash('sha256')
         .update(key).digest(returnMode);
 }
@@ -102,14 +116,14 @@ const sha256 = function(key, returnMode) {
 // 戻り値: sha256(base64)で返却します.
 const getEtag = function(
     mainPath, currentPath, name, fileLen, fileTime) {
-    return sha256(
+    return cutBeforeEq(sha256(
         mainPath + "\n" +
         currentPath + "\n" +
         name + "\n" +
         fileLen + "\n" +
         fileTime,
         "base64"
-    )
+    ));
 }
 
 // originRequire読み込みスクリプトheader.
@@ -214,7 +228,7 @@ const fakeHead = function(mainPath, currentPath, name) {
         false, mainPath, currentPath, name);
     // stat情報を取得.
     const stat = readStat(contentsName);
-    if(ret == null) {
+    if(stat == null) {
         // 404エラー返却.
         // headerは空.
         return {
