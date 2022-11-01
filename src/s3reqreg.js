@@ -209,9 +209,12 @@ const getS3Path = function(path, currentPath) {
 
 // 指定S3からオブジェクトを取得.
 // params urlをgetS3Path()で処理した内容を設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: promiseが返却されます.
-const loadS3 = async function(params) {
-    const response = {}
+const loadS3 = async function(params, response) {
+    if(response == undefined || response == null) {
+        response = {};
+    }
     const ret = await s3.getObject(
         response, getRegion(), params.Bucket, params.Key)
     if(response.status >= 400) {
@@ -276,6 +279,7 @@ const originRequire = function(name, js) {
 // path requireするs3pathを設定します.
 // currentPath 今回有効にしたいcurrentPathを設定する場合、設定します.
 // noneCache キャッシュしない場合は trueを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: promiseが返却されます.
 //         利用方法として以下の感じで行います.
 //           ・・・・・・
@@ -287,7 +291,7 @@ const originRequire = function(name, js) {
 //         面倒なのは、s3requireを利用する毎に毎回(async function() {})()
 //         定義が必要なことと、通常のrequireのように、function外の呼び出し
 //         定義ができない点(必ずFunction内で定義が必須)です.
-const s3require = async function(path, currentPath, noneCache) {
+const s3require = async function(path, currentPath, noneCache, response) {
     // noneCacheモードを取得.
     if(typeof(noneCache) != "boolean") {
         // 取得できない場合は、デフォルトのnoneCacheモードをセット.
@@ -312,7 +316,7 @@ const s3require = async function(path, currentPath, noneCache) {
         }
     }
     // S3からデータを取得して実行してキャッシュ化する.
-    const js = (await loadS3(s3params)).toString();
+    const js = (await loadS3(s3params, response)).toString();
     // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
     // なしで返却.
     if(path.toLowerCase().endsWith(".json")) {
@@ -336,11 +340,12 @@ const s3require = async function(path, currentPath, noneCache) {
 // s3情報を設定してコンテンツ(binary)を取得.
 // path requireするs3pathを設定します.
 // currentPath 今回有効にしたいcurrentPathを設定する場合、設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: promiseが返却されます.
-const s3contents = function(path, currentPath) {
+const s3contents = function(path, currentPath, response) {
     // s3pathをBucket, Keyに分解.
     // S3からコンテンツ(binary)を返却.
-    return loadS3(getS3Path(path, currentPath));
+    return loadS3(getS3Path(path, currentPath), response);
 }
 
 // s3情報のレスポンス情報を取得.

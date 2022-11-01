@@ -101,9 +101,10 @@ const getGithubObjectToPath = function(
 // method 対象のメソッドを設定します.
 // path 対象のpathを設定します.
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: methodがHEADの場合、レスポンスが返却されます.
 //        それ以外の場合は、HTTPレスポンスBodyが返却されます.
-const getGithubObject = async function(method, path, token) {
+const getGithubObject = async function(method, path, token, response) {
     // デフォルトヘッダを設定.
     const header = {
         "X-Header": "X-Header"
@@ -113,8 +114,9 @@ const getGithubObject = async function(method, path, token) {
     if(typeof(token) == "string") {
         header["Authorization"] = "token " + token;
     }
-    // レスポンス情報.
-    const response = {};
+    if(response == undefined || response == null) {
+        response = {};
+    }
     // オプションを設定.
     const options = {
         method: method,
@@ -145,9 +147,10 @@ const getGithubObject = async function(method, path, token) {
 // 対象Githubリポジトリ内のJavascriptをロード..
 // path 対象のパスを設定します.
 // token privateリポジトリにアクセスする場合は、githubのtokenをセットします.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: HTTPレスポンスBodyが返却されます.
-const getGithubObjectToJs = function(path, token) {
-    return getGithubObject("GET", path, token)
+const getGithubObjectToJs = function(path, token, response) {
+    return getGithubObject("GET", path, token, response)
     .then((body) => {
         return body.toString();
     });
@@ -294,6 +297,7 @@ const originRequire = function(path, js) {
 // path [必須]対象のpath を設定します.
 // currentPath [任意]カレントパスを設定します.
 // noneCache [任意]キャッシュしない場合は trueを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: promiseが返却されます.
 //  利用方法として以下の感じで行います.
 //  ・・・・・・
@@ -305,7 +309,8 @@ const originRequire = function(path, js) {
 // 面倒なのは、grequireを利用する毎に毎回(async function() {})()
 // 定義が必要なことと、通常のrequireのように、function外の呼び出し
 // 定義ができない点(必ずFunction内で定義が必須)です.
-const grequire = async function(path, currentPath, noneCache) {
+const grequire = async function(
+    path, currentPath, noneCache, response) {
     const organization = _DEFAULT_ORGANIZATION;
     const repo = _DEFAULT_REPO;
     const branch = _DEFAULT_BRANCH;
@@ -336,7 +341,7 @@ const grequire = async function(path, currentPath, noneCache) {
     }
     // gitのrepogitoryからデータを取得して実行.
     const js = await getGithubObjectToJs(gpath, 
-        getOrganizationToken(organization));
+        getOrganizationToken(organization), response);
     // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
     // なしで返却.
     if(path.toLowerCase().endsWith(".json")) {
@@ -360,8 +365,9 @@ const grequire = async function(path, currentPath, noneCache) {
 // github情報を設定してコンテンツ(binary)を取得.
 // path [必須]対象のpath を設定します.
 // currentPath [任意]カレントパスを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: promiseが返却されます.
-const gcontents = function(path, currentPath) {
+const gcontents = function(path, currentPath, response) {
     const organization = _DEFAULT_ORGANIZATION;
     const repo = _DEFAULT_REPO;
     const branch = _DEFAULT_BRANCH;
@@ -373,7 +379,7 @@ const gcontents = function(path, currentPath) {
         organization, repo, branch, currentPath, path);
     // githubからコンテンツ(binary)を返却.
     return getGithubObject("GET", gpath, 
-        getOrganizationToken(organization));
+        getOrganizationToken(organization), response);
 }
 
 // github情報を設定してコンテンツのヘッダ情報を取得.
@@ -390,9 +396,11 @@ const ghead = function(path, currentPath) {
     // githubObject用のPathを取得.
     const gpath = getGithubObjectToPath(
         organization, repo, branch, currentPath, path);
-    // githubからコンテンツ(binary)を返却.
-    return getGithubObject("HEAD", gpath, 
-        getOrganizationToken(organization));
+    // githubからレスポンスヘッダを取得.
+    const ret = {};
+    getGithubObject("HEAD", gpath, 
+        getOrganizationToken(organization), ret);
+    return ret;
 }
 
 // キャッシュをクリア.

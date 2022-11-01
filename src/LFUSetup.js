@@ -328,14 +328,22 @@ const analysisEnv = function() {
 const regRequestRequireFunc = function(env) {
     if(env.mainExternal == _MAIN_S3_EXTERNAL) {
         // s3用のrequest処理.
-        _requestFunction = function(jsFlag, path) {
+        _requestFunction = async function(jsFlag, path, response) {
+            let ret = null;
             // javascript実行呼び出し.
             if(jsFlag == true) {
                 // キャッシュしないs3require実行.
-                return _g.s3require(path, env.requestPath, true);
+                ret = await _g.s3require(path, env.requestPath, true, response);
+            } else {
+                // s3contentsを実行してコンテンツを取得.
+                ret = await _g.s3contents(path, env.requestPath, response);
             }
-            // s3contentsを実行してコンテンツを取得.
-            return _g.s3contents(path, env.requestPath);
+            // レスポンスが設定されている場合.
+            if(response != undefined && response != null) {
+                // レスポンスヘッダを変換.
+                response.header = httpHeader.create(response.header, null)
+            }
+            return ret;
         };
 
         // s3用のhead処理.
@@ -344,21 +352,29 @@ const regRequestRequireFunc = function(env) {
         //}
 
         // s3内で利用するrequire処理.
-        _g.exrequire = function(path, noneCache, curerntPath) {
-            return _g.s3require(path, curerntPath, noneCache);
+        _g.exrequire = function(
+            path, noneCache, curerntPath, response) {
+            return _g.s3require(path, curerntPath,
+                noneCache, response);
         }
     } else {
         // github用のrequest処理.
-        _requestFunction = function(jsFlag, path) {
+        _requestFunction = async function(jsFlag, path, response) {
+            let ret = null;
             // javascript実行呼び出し.
             if(jsFlag == true) {
                 // キャッシュしないgrequire実行.
-                return _g.grequire(path,
-                    env.requestPath, true);
+                ret = await _g.grequire(path, env.requestPath, true, response);
+            } else {
+                // gcontentsを実行してコンテンツを取得.
+                ret = await _g.gcontents(path, env.requestPath, response);
             }
-            // gcontentsを実行してコンテンツを取得.
-            return _g.gcontents(path,
-                env.requestPath);
+            // レスポンスが設定されている場合.
+            if(response != undefined && response != null) {
+                // レスポンスヘッダを変換.
+                response.header = httpHeader.create(response.header, null)
+            }
+            return ret;
         };
 
         // github用のhead処理.
@@ -368,10 +384,9 @@ const regRequestRequireFunc = function(env) {
 
         // github内で利用するrequire処理
         _g.exrequire = function(
-            path, noneCache, currentPath) {
-            return _g.grequire(path,
-                currentPath, noneCache
-            );
+            path, noneCache, currentPath, response) {
+            return _g.grequire(path, currentPath,
+                noneCache, response);
         }
     }
 }
@@ -822,13 +837,31 @@ const main_handler = async function(event, context) {
             //////////////////////////
 
             // 対象パスのコンテンツ情報を取得.
-            resBody = await _requestFunction(false, request.path);
+            let response = {};
+            resBody = await _requestFunction(false, request.path, response);
 
             // mimeTypeを取得.
             const resMimeType = getMimeType(request.extension);
 
             // レスポンス返却のHTTPヘッダに対象拡張子MimeTypeをセット.
             resHeader.put("content-type", resMimeType.type);
+
+            // レスポンスヘッダからetagを取得.
+            const etag = response.header.get("etag");
+            if(typeof(etag) == "string") {
+                // etagをセット.
+                resHeader.put("etag", etag);
+                resHeader.put("expires", new Date().toISOString());
+                // キャッシュされているかチェック.
+                if(request.header.get("if-none-match") == etag) {
+                    // レスポンス返却.
+                    return returnResponse(
+                        304,
+                        resHeader.toHeaders(),
+                        resHeader.toCookies(),
+                        null, true);
+                }
+            }
 
             // 圧縮対象の場合.
             // または環境変数で、圧縮なし指定でない場合.

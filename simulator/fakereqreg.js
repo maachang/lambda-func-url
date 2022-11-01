@@ -108,22 +108,35 @@ const sha256 = function(key, returnMode) {
 }
 
 // 対象条件からetagを作成.
-// mainPath メインパスを設定します.
-// currentPath カレントパス名を設定します.
 // name ファイル名を設定します.
 // fileLen ファイル長を設定します.
 // fileTime 最終更新時間を設定します.
 // 戻り値: sha256(base64)で返却します.
 const getEtag = function(
-    mainPath, currentPath, name, fileLen, fileTime) {
+    name, fileLen, fileTime) {
     return cutBeforeEq(sha256(
-        mainPath + "\n" +
-        currentPath + "\n" +
         name + "\n" +
         fileLen + "\n" +
         fileTime,
         "base64"
     ));
+}
+
+
+// HTTPエラー.
+// status 対象のステータスを設定します.
+// message 対象のメッセージを設定します.
+const httpError = function(status, message) {
+    // メッセージが設定されていない場合.
+    if(message == undefined || message == null) {
+        message = "";
+    } else {
+        message = "" + message;
+    }
+    const err = new Error(message);
+    err.status = status;
+    err.message = message;
+    return err;
 }
 
 // originRequire読み込みスクリプトheader.
@@ -172,22 +185,69 @@ const originRequire = function(name, js) {
     }
 }
 
+// etagレスポンス返却.
+// response 出力先のレスポンスを設定します.
+// fileName 対象のファイル名を設定します.
+// 戻り値: response情報が返却されます.
+const getResponse = function(response, fileName) {
+    // レスポンスが存在しない場合.
+    if(response == undefined || response == null) {
+        // 返却用として生成.
+        response = {};
+    }
+    // stat情報を取得.
+    const stat = readStat(fileName);
+    if(stat == null) {
+        // 404エラー返却.
+        // headerは空.
+        response["status"] = 404;
+        response["header"] = {
+            "server": cons.SERVER_NAME,
+            "date": new Date().toISOString()
+        }
+        return response;
+    }
+    // ファイル長を取得.
+    const fileLen = stat.size;
+    // ファイル最終更新時間を取得.
+    const fileTime = stat.mtime;
+    // etagを作成.
+    const etag = getEtag(
+        fileName, fileLen, fileTime.getTime());
+    // レスポンス返却.
+    response["status"] = 200;
+    response["header"] = {
+        "server": cons.SERVER_NAME,
+        "date": new Date().toISOString(),
+        "content-length": "" + fileLen,
+//        "last-modified": fileTime.toISOString(),
+        "etag": etag
+    };
+    return response;
+}
+
 // [偽]ローカルrequire取得.
 // mainPath 対象のメインパスを設定します.
 // currentPath 対象のカレントパスを設定します.
 // name require先のファイルを取得します.
+// noneCache [任意]キャッシュしない場合は trueを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: require結果が返却されます.
-const fakeRequire = function(mainPath, currentPath, name) {
+const fakeRequire = function(mainPath, currentPath, name,
+    noneCache, response) {
     // ファイル名を整形.
     const jsName = trimPath(
         true, mainPath, currentPath, name);
+    // レスポンス取得.
+    response = getResponse(response, jsName);
+    if(response.status >= 400) {
+        // エラー返却.
+        throw httpError(response.status,
+            "Specified file name does not exist: " +
+            name);
+    }
     // ファイル内容を取得.
     let js = readFile(jsName);
-    if(js == null) {
-        throw new Error(
-            "Specified file name does not exist: " +
-            jsName);
-    }
     // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
     // なしで返却.
     if(jsName.toLowerCase().endsWith(".json")) {
@@ -202,19 +262,22 @@ const fakeRequire = function(mainPath, currentPath, name) {
 // mainPath 対象のメインパスを設定します.
 // currentPath 対象のカレントパスを設定します.
 // name contains先のファイルを取得します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: contains結果(binary)が返却されます.
-const fakeContents = function(mainPath, currentPath, name) {
+const fakeContents = function(mainPath, currentPath, name, response) {
     // ファイル名を整形.
     const contentsName = trimPath(
         false, mainPath, currentPath, name);
-    // ファイル内容を取得.
-    const ret = readFile(contentsName);
-    if(ret == null) {
-        throw new Error(
+    // レスポンス取得.
+    response = getResponse(response, contentsName);
+    if(response.status >= 400) {
+        // エラー返却.
+        throw httpError(response.status,
             "Specified file name does not exist: " +
             name);
     }
-    return ret;
+    // ファイル内容を取得.
+    return readFile(contentsName);
 }
 
 // [偽]ローカルhead取得.
@@ -226,62 +289,38 @@ const fakeHead = function(mainPath, currentPath, name) {
     // ファイル名を整形.
     const contentsName = trimPath(
         false, mainPath, currentPath, name);
-    // stat情報を取得.
-    const stat = readStat(contentsName);
-    if(stat == null) {
-        // 404エラー返却.
-        // headerは空.
-        return {
-            status: 404,
-            header: {
-                "server": cons.SERVER_NAME,
-                "date": new Date().toISOString()
-            }
-        }
-    }
-    // ファイル長を取得.
-    const fileLen = stat.size;
-    // ファイル最終更新時間を取得.
-    const fileTime = stat.mtime;
-    // etagを作成.
-    const etag = getEtag(
-        mainPath, currentPath, name, fileLen, 
-        fileTime.getTime());
-    // レスポンス返却.
-    return {
-        status: 200,
-        header: {
-            "server": cons.SERVER_NAME,
-            "date": new Date().toISOString(),
-            "content-length": "" + fileLen,
-            "last-modified": fileTime.toISOString(),
-            "etag": etag
-        }
-    };
+    // レスポンス情報を取得.
+    const response = {};
+    getResponse(response, contentsName);
+    return response;
 }
 
 // s3requireを登録.
 // path require先のファイルを取得します.
 // currentPath 対象のカレントパスを設定します.
+// noneCache [任意]キャッシュしない場合は trueを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: require結果が返却されます.
-const s3require = function(path, currentPath) {
+const s3require = function(path, currentPath, noneCache, response) {
     if(fakeS3Path == null) {
         throw new Error(
             "Permission to use the s3 environment has not been set.");
     }
-    return fakeRequire(fakeS3Path, currentPath, path);
+    return fakeRequire(
+        fakeS3Path, currentPath, path, noneCache, response);
 }
 
 // s3containsを登録.
 // path contains先のファイルを取得します.
 // currentPath 対象のカレントパスを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: contains結果(binary)が返却されます.
-const s3contents = function(path, currentPath) {
+const s3contents = function(path, currentPath, response) {
     if(fakeS3Path == null) {
         throw new Error(
             "Permission to use the s3 environment has not been set.");
     }
-    return fakeContents(fakeS3Path, currentPath, path);
+    return fakeContents(fakeS3Path, currentPath, path, response);
 }
 
 // s3headを登録.
@@ -304,25 +343,29 @@ s3require.exports = {
 // grequireを登録.
 // path require先のファイルを取得します.
 // currentPath 対象のカレントパスを設定します.
+// noneCache [任意]キャッシュしない場合は trueを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: require結果が返却されます.
-const grequire = function(path, currentPath) {
+const grequire = function(path, currentPath, noneCache, response) {
     if(fakeGitPath == null) {
         throw new Error(
             "Permission to use the github environment has not been set.");
     }
-    return fakeRequire(fakeGitPath, currentPath, path);
+    return fakeRequire(
+        fakeGitPath, currentPath, path, noneCache, response);
 }
 
 // gcontainsを登録.
 // path contains先のファイルを取得します.
 // currentPath 対象のカレントパスを設定します.
+// response レスポンス情報を取得したい場合設定します.
 // 戻り値: contains結果(binary)が返却されます.
-const gcontents = function(path, currentPath) {
+const gcontents = function(path, currentPath, response) {
     if(fakeGitPath == null) {
         throw new Error(
             "Permission to use the github environment has not been set.");
     }
-    return fakeContents(fakeGitPath, currentPath, path);
+    return fakeContents(fakeGitPath, currentPath, path, response);
 }
 
 // gheadを登録.

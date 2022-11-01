@@ -1,5 +1,13 @@
 // LFUをminify化して、zip変換.
 //
+// - linux上での実行を想定.
+// - uglify-js(npm)を利用.
+//   > npm -g install uglify-js
+//     でインストール.
+// - zipコマンドを利用.
+//   > sudo apt install zip
+//     でインストール.
+//
 
 (function() {
 'use strict';
@@ -84,15 +92,18 @@ for(let i = 0; i < len; i ++) {
         path + "/" + MINIFY_DIR + "/" + srcList[i]);
     console.log("> " + srcList[i]);
 }
+console.log();
 
 // minifyした内容をzip化する.
 // > cd ../.minSrc/src; zip archive -r ./
 console.log("> zip");
 execSync("cd " + path + "/" + MINIFY_DIR + "/src" + "; zip archive -r ./");
+console.log();
 
 // zip化したものを移動.
 console.log("> lfu.zip");
 execSync("mv " + path + "/" + MINIFY_DIR + "/src/archive.zip " + path + "/lfu.zip");
+console.log();
 
 // 正常終了.
 process.exit(0);
