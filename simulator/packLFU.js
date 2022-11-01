@@ -17,7 +17,15 @@ const LFU_SRC_LIST = ".lfuSrcList.JSON";
 const MINIFY_DIR = ".minSrc";
 
 // 対象パスを取得.
-const path = process.argv[2];
+let path = process.argv[2];
+
+// 0x0d, 0x0d が終端に設定されている場合.
+let bpath = Buffer.from(path);
+if(bpath.length >= 2 &&
+    bpath[bpath.length -1] == 0x0d && bpath[bpath.length - 2] == 0x0d) {
+    path = path.substring(0, path.length - 2);
+}
+bpath = null;
 
 // パスが設定されていません.
 if(path == undefined) {
@@ -26,10 +34,15 @@ if(path == undefined) {
 
 // LFUソースリストが指定パスに存在しない場合.
 } else if(!fs.existsSync(path + "/" + LFU_SRC_LIST)) {
-    console.error("[ERROR] The file " + LFU_SRC_LIST +
-        " does not exist in the target path " +
-        path + ".")
+    console.error("[ERROR] The file '" + LFU_SRC_LIST +
+        "' does not exist in the target path '" +
+        path + "'.")
     process.exit(1);
+}
+
+// パスの最後のスラッシュを削除.
+if(path.endsWith("/")) {
+    path = path.substring(0, path.length - 1);
 }
 
 // ファイル情報を取得.
@@ -39,18 +52,49 @@ let srcList = fs.readFileSync(
 // リスト一覧.
 srcList = JSON.parse(srcList); 
 
+try {
+    fs.mkdirSync(path + "/" + MINIFY_DIR + "/");
+} catch(e) {};  
+
 // minify先のディレクトリ作成.
-fs.mkdirSync(path + "/" + MINIFY_DIR);
-
-// uglifyjs <input js file> --compress drop_console=true --mangle -o <js.min file>
-
-const len = srcList.length;
-for(let i = 0; i < len; i ++) {
-    execSync("uglifyjs " + path + "/" + srcList[i])
+const mkdir = function(path, src) {
+    const p = src.lastIndexOf("/");
+    if(p == -1) {
+        return;
+    }
+    const dir = src.substring(0, p);
+    try {
+        fs.mkdirSync(path + "/" + MINIFY_DIR + "/" + dir);
+    } catch(e) {};    
 }
 
-//const res = execSync("pwd");
-//console.log(res.toString());
+// minifyする.
+// > uglifyjs <input js file> --compress drop_console=true --mangle -o <js.min file>
+const len = srcList.length;
+for(let i = 0; i < len; i ++) {
+    // 指定ファイルが存在しない場合.
+    if(!fs.existsSync(path + "/" + srcList[i])) {
+        console.error("[ERROR] The specified file "
+            + path + "/" + srcList[i] + " does not exist.");
+        process.exit(1);
+    }
+    mkdir(path, srcList[i]);
+    execSync("uglifyjs " + path + "/" + srcList[i] +
+        " --compress drop_console=true --mangle -o " +
+        path + "/" + MINIFY_DIR + "/" + srcList[i]);
+    console.log("> " + srcList[i]);
+}
 
+// minifyした内容をzip化する.
+// > cd ../.minSrc/src; zip archive -r ./
+console.log("> zip");
+execSync("cd " + path + "/" + MINIFY_DIR + "/src" + "; zip archive -r ./");
+
+// zip化したものを移動.
+console.log("> lfu.zip");
+execSync("mv " + path + "/" + MINIFY_DIR + "/src/archive.zip " + path + "/lfu.zip");
+
+// 正常終了.
+process.exit(0);
 
 })();

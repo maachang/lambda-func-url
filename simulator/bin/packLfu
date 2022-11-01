@@ -1,0 +1,2 @@
+ARGS=${*}
+node ${LFU_HOME}/simulator/packLFU ${ARGS}

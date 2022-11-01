@@ -1,3 +1,2 @@
-#!/bin/bash
 ARGS=${*}
 node ${LFU_HOME}/simulator/index ${ARGS}
