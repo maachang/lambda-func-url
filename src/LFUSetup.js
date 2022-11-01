@@ -463,6 +463,11 @@ const convertHttpPath = function(path) {
 // headerObject 対象のHTTPヘッダ(Object型)を設定します.
 // 戻り値: Objectが返却されます.
 const setNoneCacheHeader = function(headerObject) {
+    // キャッシュ条件が設定されている場合.
+    if(headerObject["last-modified"] != undefined ||
+        headerObject["etag"] != undefined) {
+        return headerObject;
+    }
     // HTTPレスポンスキャッシュ系のコントロールが設定されていない
     // 場合にキャッシュなしを設定する.
     if(headerObject["cache-control"] == undefined) {
@@ -471,8 +476,8 @@ const setNoneCacheHeader = function(headerObject) {
     if(headerObject["pragma"] == undefined) {
         headerObject["pragma"] = "no-cache";
     }
-    if(headerObject["expire"] == undefined) {
-        headerObject["expire"] = "-1";
+    if(headerObject["expires"] == undefined) {
+        headerObject["expires"] = "-1";
     }
     return headerObject;
 }
@@ -704,9 +709,11 @@ const BAD_EXTENSION = [
 // res Array[1] にresponse設定を行う内容を設定します.
 // name 対象のnameを設定します.
 // 戻り値: true の場合存在します.
-const existRequest = function(res, name) {
+const existsRequest = function(res, name) {
     const r = _requestHeadFunc(name);
-    res[0] = r;
+    if(Array.isArray(res)) {
+        res[0] = r;
+    }
     if(r.status >= 400) {
         return false;
     }
@@ -801,7 +808,7 @@ const main_handler = async function(event, context) {
                     0, request.path.length - 6) + ".js.html";
                 
                 // 情報が存在するかチェック.
-                if(!existRequest(resHead, name)) {
+                if(!existsRequest(resHead, name)) {
                     // 存在しない場合のエラー返却.
                     if(resHead[0].status >= 400) {
                         // 受信HTTPstatusが400以上の場合.
@@ -841,7 +848,7 @@ const main_handler = async function(event, context) {
             //////////////////////////
 
             // 情報が存在するかチェック.
-            if(!existRequest(resHead, request.path)) {
+            if(!existsRequest(resHead, request.path)) {
                 // 存在しない場合のエラー返却.
                 if(resHead[0].status >= 400) {
                     // 受信HTTPstatusが400以上の場合.
@@ -854,11 +861,25 @@ const main_handler = async function(event, context) {
             const response = resHead[0];
             resHead[0] = null;
 
+            // キャッシュ情報の場合.
+            if(request.header.get("If-none-match") == response.header["etag"] ||
+                request.header.get("if-modified-since") == response.header["last-modified"]) {
+                // レスポンス返却.
+                return returnResponse(
+                    304,
+                    {
+                        "etag": response.header["etag"],
+                        "last-modified": response.header["last-modified"],
+                        "expires": new Date().toISOString()
+                    },
+                    resHeader.toCookies(),
+                    null, true);
+            } else {
+                resHeader.put("etag", response.header["etag"]);
+                resHeader.put("last-modified", response.header["last-modified"]);
+                resHeader.put("expires", new Date().toISOString());
+            }
 
-
-
-
-            
             // 対象パスのコンテンツ情報を取得.
             resBody = await _requestFunction(false, request.path);
 
@@ -889,7 +910,7 @@ const main_handler = async function(event, context) {
         ////////////////////////////
         {
             // 情報が存在するかチェック.
-            if(!existRequest(resHead, request.path + ".lfu.js")) {
+            if(!existsRequest(resHead, request.path + ".lfu.js")) {
                 // 存在しない場合のエラー返却.
                 if(resHead[0].status >= 400) {
                     // 受信HTTPstatusが400以上の場合.

@@ -121,9 +121,22 @@ var getUrlPath = function (req) {
 // headers 対象のHTTPヘッダ(Object型)を設定します.
 // 戻り値: Objectが返却されます.
 const setNoneCacheHeader = function(headers) {
-    headers["cache-control"] = "no-cache";
-    headers["pragma"] = "no-cache";
-    headers["expire"] = "-1";
+    // キャッシュ条件が設定されている場合.
+    if(headers["last-modified"] != undefined ||
+        headers["etag"] != undefined) {
+        return;
+    }
+    // HTTPレスポンスキャッシュ系のコントロールが設定されていない
+    // 場合にキャッシュなしを設定する.
+    if(headers["cache-control"] == undefined) {
+        headers["cache-control"] = "no-cache";
+    }
+    if(headers["pragma"] == undefined) {
+        headers["pragma"] = "no-cache";
+    }
+    if(headers["expires"] == undefined) {
+        headers["expires"] = "-1";
+    }
 }
 
 // クロスヘッダをセット.

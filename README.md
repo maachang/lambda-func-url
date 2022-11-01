@@ -628,3 +628,9 @@ jhtmlでは、以下のような組込変数が存在する.
 また `frequire` は `s3require` や `grequire` のjsファイル内でも、`require` と違って利用する事ができる.
 
 このような形で LFUの 各種 `require` は従来とは違うが、それぞれの分散したソースコードの読み込みに対して、最適な形で提供をしている.
+
+## lambdaではこの環境変数を入れとくほうが良いらしい
+
+> AWS_NODEJS_CONNECTION_REUSE_ENABLED=1
+
+HTTPのKeepAliveが効くので、レスポンスが向上するんだとか.
