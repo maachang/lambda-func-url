@@ -45,7 +45,7 @@ let _requestFunction = undefined;
 // 作成される.
 // path 対象のパスを設定.
 // 戻り値: response情報.
-let _requestHeadFunc = undefined;
+//let _requestHeadFunc = undefined;
 
 // エラー例外処理.
 // message　エラーメッセージを設定します.
@@ -339,9 +339,9 @@ const regRequestRequireFunc = function(env) {
         };
 
         // s3用のhead処理.
-        _requestHeadFunc = function(path) {
-            return _g.s3head(path, env.requestPath);
-        }
+        //_requestHeadFunc = function(path) {
+        //    return _g.s3head(path, env.requestPath);
+        //}
 
         // s3内で利用するrequire処理.
         _g.exrequire = function(path, noneCache, curerntPath) {
@@ -362,9 +362,9 @@ const regRequestRequireFunc = function(env) {
         };
 
         // github用のhead処理.
-        _requestHeadFunc = function(path) {
-            return _g.ghead(path, env.requestPath);
-        }
+        //_requestHeadFunc = function(path) {
+        //    return _g.ghead(path, env.requestPath);
+        //}
 
         // github内で利用するrequire処理
         _g.exrequire = function(
@@ -705,21 +705,6 @@ const BAD_EXTENSION = [
     ,".lfu.js"
 ];
 
-// 指定名が存在するかチェック.
-// res Array[1] にresponse設定を行う内容を設定します.
-// name 対象のnameを設定します.
-// 戻り値: true の場合存在します.
-const existsRequest = function(res, name) {
-    const r = _requestHeadFunc(name);
-    if(Array.isArray(res)) {
-        res[0] = r;
-    }
-    if(r.status >= 400) {
-        return false;
-    }
-    return true;
-}
-
 // [Main]ハンドラー実行.
 // lambda-func-url に対する実行処理(HTTP or HTTPS)が行われるので、
 // ここでハンドラー実行処理を行う必要がある.
@@ -807,17 +792,6 @@ const main_handler = async function(event, context) {
                 const name = request.path.substring(
                     0, request.path.length - 6) + ".js.html";
                 
-                // 情報が存在するかチェック.
-                if(!existsRequest(resHead, name)) {
-                    // 存在しない場合のエラー返却.
-                    if(resHead[0].status >= 400) {
-                        // 受信HTTPstatusが400以上の場合.
-                        throw new httpStatus.httpError(
-                            resHead[0].status);
-                    }
-                }
-                resHead[0] = null;
-                
                 // jhtml内容を取得.
                 resBody = await _requestFunction(false, name);
                 // 取得内容(binary)を文字変換.
@@ -846,39 +820,6 @@ const main_handler = async function(event, context) {
             //////////////////////////
             // コンテンツファイルを取得.
             //////////////////////////
-
-            // 情報が存在するかチェック.
-            if(!existsRequest(resHead, request.path)) {
-                // 存在しない場合のエラー返却.
-                if(resHead[0].status >= 400) {
-                    // 受信HTTPstatusが400以上の場合.
-                    throw new httpStatus.httpError(
-                        resHead[0].status);
-                }
-            }
-                        
-            // レスポンス情報を取得.
-            const response = resHead[0];
-            resHead[0] = null;
-
-            // キャッシュ情報の場合.
-            if(request.header.get("If-none-match") == response.header["etag"] ||
-                request.header.get("if-modified-since") == response.header["last-modified"]) {
-                // レスポンス返却.
-                return returnResponse(
-                    304,
-                    {
-                        "etag": response.header["etag"],
-                        "last-modified": response.header["last-modified"],
-                        "expires": new Date().toISOString()
-                    },
-                    resHeader.toCookies(),
-                    null, true);
-            } else {
-                resHeader.put("etag", response.header["etag"]);
-                resHeader.put("last-modified", response.header["last-modified"]);
-                resHeader.put("expires", new Date().toISOString());
-            }
 
             // 対象パスのコンテンツ情報を取得.
             resBody = await _requestFunction(false, request.path);
@@ -909,17 +850,6 @@ const main_handler = async function(event, context) {
         // externalなfunctionを実行.
         ////////////////////////////
         {
-            // 情報が存在するかチェック.
-            if(!existsRequest(resHead, request.path + ".lfu.js")) {
-                // 存在しない場合のエラー返却.
-                if(resHead[0].status >= 400) {
-                    // 受信HTTPstatusが400以上の場合.
-                    throw new httpStatus.httpError(
-                        resHead[0].status);
-                }
-            }
-            resHead[0] = null;
-
             // 対象Javascriptを取得.
             // 拡張子は `.lfu.js`
             let func = await _requestFunction(

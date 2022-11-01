@@ -211,7 +211,7 @@ let _CACHE_TIMEOUT = 30000;
 let _NONE_CACHE = false;
 
 // オプション設定.
-// option {currentPath: string} カレントパスを設定します.
+// option {path: string} カレントパスを設定します.
 //        {timeout: number} キャッシュタイムアウトを設定します.
 //        {noneCache: boolean} 未キャッシュ条件を設定します.
 // 戻り値 exports と同等の内容が戻されます.
