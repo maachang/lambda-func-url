@@ -851,7 +851,7 @@ const main_handler = async function(event, context) {
             if(typeof(etag) == "string") {
                 // etagをセット.
                 resHeader.put("etag", etag);
-                resHeader.put("expires", new Date().toISOString());
+                resHeader.put("expires", "-1");
                 // キャッシュされているかチェック.
                 if(request.header.get("if-none-match") == etag) {
                     // レスポンス返却.
