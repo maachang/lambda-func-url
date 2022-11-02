@@ -28,6 +28,9 @@ const MINIFY_DIR = ".minSrc";
 let path = process.argv[2];
 
 // 0x0d, 0x0d が終端に設定されている場合.
+// ※どうやらLinux上でcrlf改行のbashファイルから呼び出した場合
+//   プロセスパラメータ(process.argv)の最後0x0d, 0x0dが入る
+//   みたい.
 let bpath = Buffer.from(path);
 if(bpath.length >= 2 &&
     bpath[bpath.length -1] == 0x0d && bpath[bpath.length - 2] == 0x0d) {
