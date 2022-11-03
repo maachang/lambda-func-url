@@ -228,7 +228,7 @@ const getS3Params = function(
     }
     // index条件を文字列化.
     let count = 0;
-    const list = [];
+    let list = [];
     for(let k in index) {
         list[count ++] = encodeKeyValue(
             k, index[k]);
@@ -247,10 +247,11 @@ const getS3Params = function(
     }
     // pathに直結.
     list.sort();
-    const len = list.length;
+    let len = list.length;
     for(let i = 0; i < len; i ++) {
         path += "/" + list[i];
     }
+    list = null;
     // keyが設定されている場合は変換.
     if(topKey != null) {
         key = encodeKeyValue(topKey, key[topKey]) +
@@ -361,9 +362,6 @@ const create = function(prefix, options) {
     credential = options.credential;
     options = undefined;
     prefix = undefined;
-    
-    // オブジェクト.
-    const ret = {};
 
     // put.
     // tableName 対象のテーブル名を設定します.
@@ -372,7 +370,7 @@ const create = function(prefix, options) {
     // keys インデックスキー {key: value ... } を設定します.
     // value 出力する内容(json)を設定します.
     // 戻り値: trueの場合設定に成功しました.
-    ret.put = async function(tableName, path, key, value) {
+    const put = async function(tableName, path, key, value) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, path, key);
         value = convbEncode(value);
@@ -391,7 +389,7 @@ const create = function(prefix, options) {
     // keys インデックスキー {key: value ... } を設定します.
     // 戻り値: 検索結果(json)が返却されます.
     //         情報取得に失敗した場合は null が返却されます.
-    ret.get = async function(tableName, path, key) {
+    const get = async function(tableName, path, key) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, path, key);
         const response = {};
@@ -403,13 +401,13 @@ const create = function(prefix, options) {
             null: convbDecode(bin);
     }
 
-    // delete.
+    // remove.
     // tableName 対象のテーブル名を設定します.
     // path インデックスパス群 [{key: value} ...]を設定します.
     //      この値はkey名でソートされます.
     // keys インデックスキー {key: value ... } を設定します.
     // 戻り値: trueの場合削除に成功しました.
-    ret.delete = async function(tableName, path, key) {
+    const remove = async function(tableName, path, key) {
         const pm = getS3Params(
             bucketName, prefixName, tableName, path, key);
         const response = {};
@@ -422,16 +420,16 @@ const create = function(prefix, options) {
 
     // 指定位置のリスト一覧を取得.
     // tableName 対象のテーブル名を設定します.
+    // path インデックスパス群 [{key: value} ...]を設定します.
+    //      この値はkey名でソートされます.
     // max １ページの最大表示数を設定.
     //     100件を超える設定はできません.
     // page ページ数を設定します.
     //      先頭から取得するので、ページ数が多いと「速度低下」に
     //      繋がるので注意が必要です.
-    // path インデックスパス群 [{key: value} ...]を設定します.
-    //      この値はkey名でソートされます.
     // 戻り値: [{key: value} ... ]
     //        指定したpath位置以下のobject名のkeyValue群が返却されます.
-    ret.list = async function(tableName, max, page, path) {
+    const list = async function(tableName, path, max, page) {
         max = max|0;
         page = page|0;
         // １度に取得できる最大リスト件数の範囲外の場合.
@@ -486,6 +484,57 @@ const create = function(prefix, options) {
         // [{key: value} ... ]で返却.
         return decodeKeyValueList(ret);
     }
+
+    // オブジェクト.
+    const ret = {};
+
+    // カレントテーブル条件を設定.
+    // table 対象のテーブル名を設定します.
+    // 戻り値: それぞれの処理が返却されます.
+    ret.currentTable = function(tableName) {
+        return {
+            put: function(path, key, value) {
+                return put(tableName, path, key, value);
+            }
+            ,get: function(path, key) {
+                return get(tableName, path, key);
+            }
+            ,remove: function(path, key) {
+                return remove(tableName, path, key);
+            }
+            ,list: function(path, max, page) {
+                return list(tableName, path, max, page);
+            }
+        };
+    }
+
+    // カレントテーブル ＋ パス条件を設定.
+    // tableName 対象のテーブル名を設定します.
+    // path インデックスパス群 [{key: value} ...]を設定します.
+    //      この値はkey名でソートされます.
+    // 戻り値: それぞれの処理が返却されます.
+    ret.currentTablePath = function(tableName, path) {
+        return {
+            put: function(key, value) {
+                return put(tableName, path, key, value);
+            }
+            ,get: function(key) {
+                return get(tableName, path, key);
+            }
+            ,remove: function(key) {
+                return remove(tableName, path, key);
+            }
+            ,list: function(max, page) {
+                return list(tableName, path, max, page);
+            }
+        };
+    }
+
+    // 固有設定.
+    ret.put = put;
+    ret.get = get;
+    ret.remove = remove;
+    ret.list = list;
 
     return ret;
 }

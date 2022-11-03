@@ -314,7 +314,7 @@ const grequire = async function(
     const organization = _DEFAULT_ORGANIZATION;
     const repo = _DEFAULT_REPO;
     const branch = _DEFAULT_BRANCH;
-    if(!useString(currentPath)) {
+    if(typeof(currentPath) != "string") {
         currentPath = _CURRENT_PATH
     }
     // githubObject用のPathを取得.
@@ -371,7 +371,7 @@ const gcontents = function(path, currentPath, response) {
     const organization = _DEFAULT_ORGANIZATION;
     const repo = _DEFAULT_REPO;
     const branch = _DEFAULT_BRANCH;
-    if(!useString(currentPath)) {
+    if(typeof(currentPath) != "string") {
         currentPath = _CURRENT_PATH
     }
     // githubObject用のPathを取得.
@@ -390,7 +390,7 @@ const ghead = function(path, currentPath) {
     const organization = _DEFAULT_ORGANIZATION;
     const repo = _DEFAULT_REPO;
     const branch = _DEFAULT_BRANCH;
-    if(!useString(currentPath)) {
+    if(typeof(currentPath) != "string") {
         currentPath = _CURRENT_PATH
     }
     // githubObject用のPathを取得.

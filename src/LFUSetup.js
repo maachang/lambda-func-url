@@ -29,7 +29,7 @@ let _filterFunction = undefined;
 // 必要があります(非対応の場合は undefined).
 //
 // この値がundefinedの場合、処理されません.
-let _originMimeFunc = undefined;
+let _originMimeFunction = undefined;
 
 // requestFunction呼び出し処理.
 // 環境変数に従って専用のfunction(jsFlag, path)の
@@ -320,7 +320,6 @@ const analysisEnv = function() {
 
 // request呼び出し・require呼び出し処理のFunction登録.
 // env analysisEnvで取得した環境変数の内容が設定されます.
-// 
 // 標準定義されたrequire呼び出し `exrequire` を定義します.
 // この条件は _requestFunction と同じく主たる外部環境に対して、
 // 外部環境上で利用するrequireに対して、利用する事で環境依存を
@@ -391,6 +390,33 @@ const regRequestRequireFunc = function(env) {
     }
 }
 
+// filterFunctionを設定.
+const setFilterFunction = function(res) {
+    // filter functionの関数名で実行処理を取得.
+    if(typeof(res["filter"]) == "function") {
+        _filterFunction = res["filter"];
+    } else if(typeof(res["handler"]) == "function") {
+        _filterFunction = res["handler"];
+    } else {
+        // 対象関数名が存在しない場合.
+        throw new Error(
+            "Not a valid filter function caller");
+    }    
+}
+
+// originalMimeFunctionを設定.
+const setOriginMimeFunction = function(res) {
+    if(typeof(res["mime"]) == "function") {
+        _originMimeFunction = res["mime"];
+    } else if(typeof(res["handler"]) == "function") {
+        _originMimeFunction = res["handler"];
+    } else {
+        // 対象関数名が存在しない場合.
+        throw new Error(
+            "Not a valid original mime function caller");
+    }
+}
+
 // mimeType情報を取得.
 // AWS Lambdaで最低限のMimeTypeと、ユーザ指定の
 // MimeType定義の評価結果が返却されます.
@@ -400,19 +426,19 @@ const regRequestRequireFunc = function(env) {
 //        が返却されます.
 const getMimeType = function(extention) {
     // originMimeFuncが存在しない場合.
-    if(_originMimeFunc == undefined) {
+    if(_originMimeFunction == undefined) {
         // 環境変数に定義されてる場合それを利用.
         const path = getEnv(_ENV_ORIGIN_MIME);
         if(path != undefined) {
-            _originMimeFunc = exrequire(path, true, "")
-                ["function"];
+            const res = exrequire(path, true, "");
+            setOriginMimeFunction(res);
         }
     }
     let ret = undefined;
     // originMimeFuncが存在する場合.
-    if(_originMimeFunc != undefined) {
+    if(_originMimeFunction != undefined) {
         // その条件で返却.
-        ret = _originMimeFunc(extention);
+        ret = _originMimeFunction(extention);
         // 条件が見合わない場合.
         if(typeof(ret) != "object" ||
             ret.type == undefined ||
@@ -728,9 +754,9 @@ const BAD_EXTENSION = [
 // context aws lambda `index.js` のmainメソッド
 //         exports.handler(_, context)の条件が設定されます.
 const main_handler = async function(event, context) {
-
     // レスポンスステータス.
     const resState = httpStatus.create();
+    
     // レスポンスヘッダ.
     let resHeader = httpHeader.create();
 
@@ -746,8 +772,9 @@ const main_handler = async function(event, context) {
             // 環境変数で定義されている場合はそれをロード.
             const path = getEnv(_ENV_FILTER_FUNCTION);
             if(typeof(path) == "string") {
-                _filterFunction = exrequire(path, true, "")
-                    ["function"];
+                // データーロード.
+                const res = await exrequire(path, true, "");
+                setFilterFunction(res);
             }
         }
 
@@ -773,9 +800,6 @@ const main_handler = async function(event, context) {
                 return resultJsOut(resState, resHeader, outResBody[0]);
             }
         }
-
-        // 存在確認用.
-        const resHead = [null];
 
         /////////////////////////////////////////////////
         // 呼び出し対象がコンテンツ実行(拡張子が存在)の場合.
@@ -1025,15 +1049,16 @@ const start = function(event, filterFunc, originMime) {
 
     // filterFuncをセット.
     _filterFunction = undefined;
-    if(typeof(filterFunc) != "function") {
-        _filterFunction = filterFunc;
+    if(filterFunc != undefined && filterFunc != null) {
+        setFilterFunction(filterFunc);
     }
 
     // 拡張mimeFuncをセット.
-    _originMimeFunc = undefined;
-    if(typeof(originMime) != "function") {
-        _originMimeFunc = originMime;
+    _originMimeFunction = undefined;
+    if(originMime != undefined && originMime != null) {
+        setOriginMimeFunction(originMime);
     }
+
     // ENVをglobalに設定.
     _g.ENV = env;
 
