@@ -1,18 +1,26 @@
-[
-    "src/LFUSetup.js"
-    ,"src/freqreg.js"
-    ,"src/greqreg.js"
-    ,"src/index.js"
-    ,"src/s3reqreg.js"
-    ,"src/lib/awsSignatureV4.js"
-    ,"src/lib/httpStatus.js"
-    ,"src/lib/jhtml.js"
-    ,"src/lib/s3client.js"
-    ,"src/lib/httpHeader.js"
-    ,"src/lib/httpsClient.js"
-    ,"src/lib/mimeType.js"
-    ,"src/lib/s3restApi.js"
-    ,"src/lib/storage/convb.js"
-    ,"src/lib/storage/jsonb.js"
-    ,"src/lib/storage/s3kvs.js"
-]
+{
+    "//": "(必須)基本LFUライブラリ群."
+    ,"base": [
+        "src/LFUSetup.js"
+        ,"src/freqreg.js"
+        ,"src/greqreg.js"
+        ,"src/index.js"
+        ,"src/s3reqreg.js"
+        ,"src/lib/awsSignatureV4.js"
+        ,"src/lib/httpStatus.js"
+        ,"src/lib/jhtml.js"
+        ,"src/lib/s3client.js"
+        ,"src/lib/httpHeader.js"
+        ,"src/lib/httpsClient.js"
+        ,"src/lib/mimeType.js"
+        ,"src/lib/s3restApi.js"
+        ,"src/lib/storage/convb.js"
+        ,"src/lib/storage/jsonb.js"
+        ,"src/lib/storage/s3kvs.js"
+    ]
+    ,"//": "(任意)拡張LFUライブラリ群."
+    ,"custom": [
+        "src/filter.js"
+        ,"src/mime.js"
+    ]
+}

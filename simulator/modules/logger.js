@@ -266,7 +266,7 @@ _console.time = function(simbol) {
     if(typeof(simbol) != "string") {
         simbol = null;
     }
-    output("log", LEVEL_LOG, "[start] " +
+    output("log", LEVEL_LOG, "[time] " +
         (simbol == null ? "default" : simbol));
     timeSimboles[simbol] = Date.now();
 }
@@ -277,7 +277,7 @@ _console.timeLog = function() {
     if(time == null) {
         return;
     }
-    const msg = "[log] " + time[1] + ": " +
+    const msg = "[timelog] " + time[1] + ": " +
         (Date.now() - time[0]) + "msec " +
         util.format.apply(null, aslice(arguments, 1));
     output("log", LEVEL_LOG, msg);
@@ -291,7 +291,7 @@ _console.timeEnd = function(simbol) {
         return;
     }
     delete timeSimboles[simbol];
-    const msg = "[end] " + time[1] + ": " +
+    const msg = "[timele] " + time[1] + ": " +
         (Date.now() - time[0]) + "msec";
     output("log", LEVEL_LOG, msg);
 }

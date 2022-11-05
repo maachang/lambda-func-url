@@ -322,7 +322,7 @@ const decodeLong = function(pos, bin) {
         ((bin[p ++] & 0x0ff) << 16) |
         ((bin[p ++] & 0x0ff) << 24));
     pos[0] = p;
-    return (high * _LONG_BY32) + (low + _LONG_BY32);
+    return (high * _LONG_BY32) + low;
 }
 // 外部定義.
 exports.decodeLong = decodeLong;
@@ -422,6 +422,20 @@ const encodeString = function(out, value) {
 }
 // 外部定義.
 exports.encodeString = encodeString;
+
+// デコード文字列を取得.
+// pos Array[number] バイナリのポジションを設定します.
+//                   またこの処理が終わった場合、バイナリのポジションは
+//                   更新されます.
+// bin バイナリを設定します.
+// 戻り値: 文字列長が返却されます.
+const decodeStringLength = function(pos, bin) {
+    let p = pos[0];
+    return (bin[p] |
+        (bin[p+1] << 8) |
+        (bin[p+2] << 16));
+}
+exports.decodeStringLength = decodeStringLength;
 
 // 文字デコード.
 // pos Array[number] バイナリのポジションを設定します.

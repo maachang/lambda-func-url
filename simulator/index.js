@@ -187,7 +187,7 @@ const startupCluster = function() {
 const startWorker = function() {
     // 初期設定.
     loadInit();
-
+    
     // バインドポート番号を取得.
     let bindPort = args.get("-p", "--port")|0;
     if(bindPort <= 0) {

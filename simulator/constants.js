@@ -59,4 +59,7 @@ exports.ENV_LOGGER_NAME = "LFU_LOGGER_NAME";
 // [環境変数]loggerファイル出力レベル.
 exports.ENV_LOGGER_LEVEL = "LFU_LOGGER_LEVEL";
 
+// logTimes名.
+exports.LOG_TIMES = "lfu-simurator";
+
 })(global);

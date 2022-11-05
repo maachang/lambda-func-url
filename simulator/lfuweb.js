@@ -485,6 +485,7 @@ const httpRequest = function(req, res) {
                 list.push(bin);
                 binLen += bin.length;
             });
+            // 処理終了.
             req.on('end', function() {
                 let n = null;
                 let off = 0;

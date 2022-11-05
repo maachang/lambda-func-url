@@ -1,0 +1,3 @@
+#!/bin/bash
+ARGS=${*}
+node ${LFU_HOME}/simulator/minifyLfu ${ARGS}
