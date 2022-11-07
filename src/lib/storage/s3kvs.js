@@ -32,6 +32,9 @@ const s3 = frequire("./lib/s3restApi.js");
 // convb.
 const convb = frequire("./lib/storage/convb.js");
 
+// デフォルトのプレフィックス.
+const DEFAULT_PREFIX = "s3kvs";
+
 // list取得での１度での最大リスト数.
 const MAX_LIST = 100;
 
@@ -226,17 +229,7 @@ const getS3Params = function(
             throw new Error("key condition is not set.");
         }
     }
-    // index条件を文字列化.
-    let count = 0;
-    let list = [];
-    for(let k in index) {
-        list[count ++] = encodeKeyValue(
-            k, index[k]);
-    }
-    // index = zeroの場合はエラー.
-    if(count == 0) {
-        throw new Error("No index key is set");
-    }
+    // パスを取得.
     // 基本prefixが存在しない.
     let path = null;
     if(prefixName == undefined || prefixName == null) {
@@ -245,13 +238,26 @@ const getS3Params = function(
     } else {
         path = prefixName + "/" + tableName;
     }
-    // pathに直結.
-    list.sort();
-    let len = list.length;
-    for(let i = 0; i < len; i ++) {
-        path += "/" + list[i];
+    // index条件を文字列化.
+    if(index != undefined && index != null) {
+        let count = 0;
+        let list = [];
+        for(let k in index) {
+            list[count ++] = encodeKeyValue(
+                k, index[k]);
+        }
+        // index = zeroの場合はエラー.
+        if(count == 0) {
+            throw new Error("No index key is set");
+        }
+        // インデックスソートしてパスに追加.
+        list.sort();
+        let len = list.length;
+        for(let i = 0; i < len; i ++) {
+            path += "/" + list[i];
+        }
+        list = null;
     }
-    list = null;
     // keyが設定されている場合は変換.
     if(topKey != null) {
         key = encodeKeyValue(topKey, key[topKey]) +
@@ -264,12 +270,12 @@ const getS3Params = function(
 }
 
 // オブジェクト生成処理.
-// prefix 対象のプレフィックス名を設定します.
-//        未設定(undefined)の場合、prefixは""(空)となります.
-// options {bucket: string, region: string}
+// options {bucket: string, prefix: string, region: string}
 //   - bucket 対象のS3バケット名を設定します.
 //     未設定(undefined)の場合、環境変数 "MAIN_S3_BUCKET" 
 //     で設定されてるバケット名が設定されます.
+//   - prefix 対象のプレフィックス名を設定します.
+//     未設定(undefined)の場合、prefixは""(空)となります.
 //   - region 対象のリージョンを設定します.
 //     未設定(undefined)の場合東京リージョン(ap-northeast-1)
 //     が設定されます.
@@ -280,7 +286,7 @@ const getS3Params = function(
 //      - secretAccessKey シークレットアクセスキーが返却されます.
 //      - sessionToken セッショントークンが返却されます.
 //                  状況によっては空の場合があります.
-const create = function(prefix, options) {
+const create = function(options) {
     // 基本バケット名.
     let bucketName = null;
 
@@ -331,37 +337,39 @@ const create = function(prefix, options) {
     }
 
     // prefixの整形.
-    if(typeof(prefix) != "string") {
-        // 設定されていない場合.
-        prefix = undefined;
-    } else {
-        // prefixの整形.
-        let flg = false;
-        prefix = prefix.trim();
-        // 開始に / が存在する場合.
-        if(prefix.startsWith("/")) {
-            // 除外.
-            prefix = prefix.substring(1);
-            flg = true;
-        }
-        // 終端に / が存在する場合.
-        if(prefix.endsWith("/")) {
-            // 除外.
-            prefix = prefix.substring(0, prefix.length - 1);
-            flg = true;
-        }
-        // 除外があった場合trimをかける.
-        if(flg) {
-            prefix = prefix.trim();
+    if(typeof(options.prefix) != "string") {
+        // バケットから空セット.
+        // 環境変数から取得.
+        options.prefix = process.env["S3_KVS_PREFIX"];
+        if(options.prefix == null || options.prefix == undefined ||
+            options.prefix.length == 0) {
+            // 設定されていない場合.
+            options.prefix = undefined;
         }
     }
+    // prefixが存在する場合.
+    if(typeof(options.prefix) == "string") {
+        options.prefix = options.prefix.trim();
+        if(options.prefix.startsWith("/")) {
+            if(options.prefix.endsWith("/")) {
+                options.prefix = options.prefix.substring(
+                    1, options.prefix.length - 1).trim();
+            } else {
+                options.prefix = options.prefix.substring(1).trim();
+            }
+        } else if(options.prefix.endsWith("/")) {
+            options.prefix = options.prefix.substring(
+                0, options.prefix.length - 1).trim();
+        }
+    }
+
     // メンバー変数条件セット.
-    prefixName = prefix;
     bucketName = options.bucket;
+    prefixName = options.prefix == undefined ?
+        DEFAULT_PREFIX : options.prefix;
     regionName = options.region;
     credential = options.credential;
     options = undefined;
-    prefix = undefined;
 
     // put.
     // tableName 対象のテーブル名を設定します.

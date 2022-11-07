@@ -4,61 +4,22 @@
 (function(_g) {
 'use strict'
 
-// convb.
-const convb = require("../storage/convb.js");
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("../../freqreg.js");
+    frequire = global.frequire;
+}
 
-// xor128演算乱数装置.
-const xor128 = function(seet) {
-    const v = {a:123456789,b:362436069,c:521288629,d:88675123};
-    // シートセット.
-    const setSeet = function(s) {
-        if (typeof(s) == "number") {
-            s = s|0;
-            v.a=s=1812433253*(s^(s>>30))+1;
-            v.b=s=1812433253*(s^(s>>30))+2;
-            v.c=s=1812433253*(s^(s>>30))+3;
-            v.d=s=1812433253*(s^(s>>30))+4;
-        }
-    }
-    // 乱数取得.
-    const next = function() {
-        let t=v.a;
-        let r=t;
-        t = (t << 11);
-        t = (t ^ r);
-        r = t;
-        r = (r >> 8);
-        t = (t ^ r);
-        r = v.b;
-        v.a = r;
-        r = v.c;
-        v.b = r;
-        r = v.d;
-        v.c = r;
-        t = (t ^ r);
-        r = (r >> 19);
-        r = (r ^ t);
-        v.d = r;
-        return r;
-    }
-    // ランダムバイナリを指定数取得.
-    const getBytes = function(len) {
-        const ret = Buffer.alloc(len);
-        for(let i = 0; i < len; i ++) {
-            ret[i] = next() & 0x0ff;
-        }
-        return ret;
-    }
-    setSeet(seet);
-    return {
-        setSeet: setSeet,
-        next: next,
-        getBytes: getBytes
-    }
-};
+// convb.
+const convb = frequire("./lib/storage/convb.js");
+
+// xor128.
+const xor128 = frequire("./lib/util/xor128.js");
 
 // 初期乱数.
-const _RAND = xor128(
+const _RAND = xor128.create(
     Date.now() + process.hrtime()[0] + process.hrtime()[1]);
 
 // 乱数キー数.
@@ -302,21 +263,68 @@ const getPassCode = function(user, password) {
 }
 exports.getPassCode = getPassCode;
 
-// 最大ユーザ名文字列長.
-const MAX_USER_LENGTH = 128;
+// 最大セッションID長.
+const MAX_SESSION_ID_LENGTH = 86;
+
+// デフォルトセッションID長.
+const DEF_SESSION_ID_LENGTH = 24;
+
+// セッションIDを生成.
+// len セッションID長を設定します.
+// 戻り値: セッションIDが返却されます.
+const createSessionId = function(len) {
+    len = len|0;
+    if(len <= 0) {
+        // 設定されていない、もしくはマイナス値.
+        // デフォルトセット.
+        len = DEF_SESSION_ID_LENGTH;
+    }
+    if(len > MAX_SESSION_ID_LENGTH) {
+        throw new Error(
+            "The specified session ID length exceeds " +
+            "the maximum value (" +
+                MAX_SESSION_ID_LENGTH + ").")
+    }
+    const ret = [];
+    _RAND.getArray(ret, len);
+    ret[ret.length] = ret & 0x0ff;
+    convb.encodeLong(ret, Date.now());
+    return cutEndBase64Eq(
+        Buffer.from(ret)
+            .toString("base64"));
+}
+exports.createSessionId = createSessionId;
+
+// 最大文字列長.
+const MAX_STRING_LENGTH = 128;
 
 // エンコード処理.
 // keyCode 対象のキー情報を設定します.
 // user 対象のユーザ名を設定します.
 // password 対象のパスワードを設定します.
+// sessionId 対象のセッションIDを設定します.
 // expire expire値(日付)を設定します.
 //        この設定条件が日付の理由はs3の最低削除時間が日付のため、
 //        この値に合わせたものになります.
 // 戻り値: Buffer情報が返却されます.
-const encodeToken = function(keyCode, user, password, expire) {
-    if(user.length > MAX_USER_LENGTH) {
+const encodeToken = function(
+    keyCode, user, password, sessionId, expire) {
+    if(typeof(user) != "string") {
+        throw new Error("User is not set.");
+    } else if(typeof(password) != "string") {
+        throw new Error("Password is not set.");
+    } else if(typeof(sessionId) != "string") {
+        throw new Error("SessionId is not set.");
+    } else if(user.length > MAX_STRING_LENGTH) {
         throw new Error(
-            "The length of the user name exceeds the specified value.");
+            "The length of the user exceeds the specified value.");
+    } else if(sessionId.length > MAX_STRING_LENGTH) {
+        throw new Error(
+            "The length of the sessionId exceeds the specified value.");
+    }
+    // expire値(日付単位)が設定されていない場合.
+    if((expire|0) <= 0) {
+        expire = 1;
     }
     // keyをハッシュ計算する.
     const hashKeyCode = hash(keyCode);
@@ -325,6 +333,8 @@ const encodeToken = function(keyCode, user, password, expire) {
     convb.encodeString(list, getPassCode(user, password));
     // ユーザー名を設定します.
     convb.encodeString(list, user);
+    // セッションIDを設定します.
+    convb.encodeString(list, sessionId);
     // パスワードとユーザ名をkey変換.
     encodeValue(list, 2, hashKeyCode);
     // expire条件(日時)をセット.
@@ -385,26 +395,35 @@ const decodeToken = function(keyCode, token) {
     
     // パスワードコードを取得.
     oPos[0] = 2;
-    let len = convb.decodeStringLength(oPos,token);
-    if(len > MAX_USER_LENGTH || len <= 0) {
+    let len = convb.decodeStringLength(oPos, token);
+    if(len > MAX_STRING_LENGTH || len <= 0) {
         // 文字列長が一定を超えた場合は例外とする.
         throw new Error("The contents of the token are invalid.");
     }
     const passCode = convb.decodeString(oPos, token);
 
     // ユーザー名を取得.
-    len = convb.decodeStringLength(oPos,token);
-    if(len > MAX_USER_LENGTH || len <= 0) {
+    len = convb.decodeStringLength(oPos, token);
+    if(len > MAX_STRING_LENGTH || len <= 0) {
         // 文字列長が一定を超えた場合は例外とする.
         throw new Error("The contents of the token are invalid.");
     }
     const user = convb.decodeString(oPos, token);
 
+    // セッションIDを取得.
+    len = convb.decodeStringLength(oPos, token);
+    if(len > MAX_STRING_LENGTH || len <= 0) {
+        // 文字列長が一定を超えた場合は例外とする.
+        throw new Error("The contents of the token are invalid.");
+    }
+    const sessionId = convb.decodeString(oPos, token);
+
     // 戻り値.
     return {
         expire: expire,
         passCode: passCode,
-        user: user
+        user: user,
+        sessionId: sessionId
     };
 }
 exports.decodeToken = decodeToken;
