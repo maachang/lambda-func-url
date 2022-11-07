@@ -127,9 +127,9 @@ const hash = function(code) {
     for(let i = 0; i < len; i ++) {
         o = (code[i] & 0x000000ff);
         if((o & 1) == 1) {
-            o = _flip(o, o);
+            o = _flip(o, o) & 0x0ff;
         } else {
-            o = _nflip(o, o);
+            o = _nflip(o, o) & 0x0ff;
         }
         if((i & 1) == 1) {
             n[0] = n[0] + o;
@@ -213,14 +213,6 @@ const cutEndBase64Eq = function(code) {
     return "";
 }
 
-// パスワードをHash変換(base64).
-// password 対象のパスワードを設定します.
-// hash化されたBase64変換されます.
-const toPasswordHash = function(password) {
-    return cutEndBase64Eq(Buffer.from(hash(password)).toString("base64"));
-}
-exports.toPasswordHash = toPasswordHash;
-
 // outのバイナリ情報にvalue内容を追加.
 // out 格納先のバイナリを設定します.
 // value 追加対象のバイナリを設定します.
@@ -299,20 +291,38 @@ const ymdDatePlus = function(plusDate) {
     return Date.now() + (plusDate * 86400000);
 }
 
+// パスコードを取得.
+// user 対象のユーザー名を設定します.
+// password 対象のパスワードを設定します.
+// hash化されたBase64変換されます.
+const getPassCode = function(user, password) {
+    return cutEndBase64Eq(
+        Buffer.from(hash(user + "\n" + password))
+            .toString("base64"));
+}
+exports.getPassCode = getPassCode;
+
+// 最大ユーザ名文字列長.
+const MAX_USER_LENGTH = 128;
+
 // エンコード処理.
 // keyCode 対象のキー情報を設定します.
 // user 対象のユーザ名を設定します.
-// password 対象のパスワード(hash化済み+base64)を設定します.
+// password 対象のパスワードを設定します.
 // expire expire値(日付)を設定します.
 //        この設定条件が日付の理由はs3の最低削除時間が日付のため、
 //        この値に合わせたものになります.
 // 戻り値: Buffer情報が返却されます.
-const encodeToken = function(keyCode, user, passwordCode, expire) {
+const encodeToken = function(keyCode, user, password, expire) {
+    if(user.length > MAX_USER_LENGTH) {
+        throw new Error(
+            "The length of the user name exceeds the specified value.");
+    }
     // keyをハッシュ計算する.
     const hashKeyCode = hash(keyCode);
     const list = [0, 0]; // [0]stepCode, [1]keyCodeStepCode.
-    // パスワードコード(hash化済み+base64)を設定します.
-    convb.encodeString(list, passwordCode);
+    // パスコード(user + password)を作成します.
+    convb.encodeString(list, getPassCode(user, password));
     // ユーザー名を設定します.
     convb.encodeString(list, user);
     // パスワードとユーザ名をkey変換.
@@ -376,13 +386,16 @@ const decodeToken = function(keyCode, token) {
     // パスワードコードを取得.
     oPos[0] = 2;
     let len = convb.decodeStringLength(oPos,token);
-    if(len > 128 || len <= 0) {
+    if(len > MAX_USER_LENGTH || len <= 0) {
+        // 文字列長が一定を超えた場合は例外とする.
         throw new Error("The contents of the token are invalid.");
     }
-    const passwordCode = convb.decodeString(oPos, token);
+    const passCode = convb.decodeString(oPos, token);
+
     // ユーザー名を取得.
     len = convb.decodeStringLength(oPos,token);
-    if(len > 128 || len <= 0) {
+    if(len > MAX_USER_LENGTH || len <= 0) {
+        // 文字列長が一定を超えた場合は例外とする.
         throw new Error("The contents of the token are invalid.");
     }
     const user = convb.decodeString(oPos, token);
@@ -390,7 +403,7 @@ const decodeToken = function(keyCode, token) {
     // 戻り値.
     return {
         expire: expire,
-        passwordCode: passwordCode,
+        passCode: passCode,
         user: user
     };
 }
