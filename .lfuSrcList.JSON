@@ -17,6 +17,8 @@
         ,"src/lib/storage/convb.js"
         ,"src/lib/storage/jsonb.js"
         ,"src/lib/storage/s3kvs.js"
+        ,"src/lib/auth/loginManager.js"
+        ,"src/lib/auth/signature.js"
     ]
     ,"//": "(任意)拡張LFUライブラリ群."
     ,"custom": [

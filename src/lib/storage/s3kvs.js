@@ -441,7 +441,7 @@ const create = function(options) {
         max = max|0;
         page = page|0;
         // １度に取得できる最大リスト件数の範囲外の場合.
-        if(max <= 0 || max >= MAX_LIST) {
+        if(max <= 0 || max > MAX_LIST) {
             if(max <= 0) {
                 throw new Error(
                     "The number of lists is set to zero.");

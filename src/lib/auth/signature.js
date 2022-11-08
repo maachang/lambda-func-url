@@ -301,18 +301,18 @@ const MAX_STRING_LENGTH = 128;
 // エンコード処理.
 // keyCode 対象のキー情報を設定します.
 // user 対象のユーザ名を設定します.
-// password 対象のパスワードを設定します.
+// passCode 対象のパスコードを設定します.
 // sessionId 対象のセッションIDを設定します.
 // expire expire値(日付)を設定します.
 //        この設定条件が日付の理由はs3の最低削除時間が日付のため、
 //        この値に合わせたものになります.
 // 戻り値: Buffer情報が返却されます.
 const encodeToken = function(
-    keyCode, user, password, sessionId, expire) {
+    keyCode, user, passCode, sessionId, expire) {
     if(typeof(user) != "string") {
         throw new Error("User is not set.");
-    } else if(typeof(password) != "string") {
-        throw new Error("Password is not set.");
+    } else if(typeof(passCode) != "string") {
+        throw new Error("PassCode is not set.");
     } else if(typeof(sessionId) != "string") {
         throw new Error("SessionId is not set.");
     } else if(user.length > MAX_STRING_LENGTH) {
@@ -329,8 +329,8 @@ const encodeToken = function(
     // keyをハッシュ計算する.
     const hashKeyCode = hash(keyCode);
     const list = [0, 0]; // [0]stepCode, [1]keyCodeStepCode.
-    // パスコード(user + password)を作成します.
-    convb.encodeString(list, getPassCode(user, password));
+    // パスコードを設定します.
+    convb.encodeString(list, passCode);
     // ユーザー名を設定します.
     convb.encodeString(list, user);
     // セッションIDを設定します.

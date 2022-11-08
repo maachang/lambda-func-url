@@ -21,8 +21,8 @@ exports.create = function(seet) {
     }
     // 乱数取得.
     const next = function() {
-        let t=v.a;
-        let r=t;
+        let t = v.a;
+        let r = t;
         t = (t << 11);
         t = (t ^ r);
         r = t;
@@ -40,20 +40,31 @@ exports.create = function(seet) {
         v.d = r;
         return r;
     }
+    // Byteリストの乱数を生成.
+    const outByteList = function(out, cnt, len) {
+        let n, i;
+        const len4 = len >> 2;
+        const lenEtc = len & 0x03;
+        for(i = 0; i < len4; i ++) {
+            n = next();
+            out[cnt ++] = n & 0x0ff;
+            out[cnt ++] = (n & 0x0ff00) >> 8;
+            out[cnt ++] = (n & 0x0ff0000) >> 16;
+            out[cnt ++] = ((n & 0xff000000) >> 24) & 0x0ff;
+        }
+        for(i = 0; i < lenEtc; i ++) {
+            out[cnt ++] = next() & 0x0ff;
+        }
+    }
     // ランダムバイナリを指定数取得.
     const getBytes = function(len) {
         const ret = Buffer.alloc(len);
-        for(let i = 0; i < len; i ++) {
-            ret[i] = next() & 0x0ff;
-        }
+        outByteList(ret, 0, len);
         return ret;
     }
     // ランダムバイナリをout(Array)に格納.
     const getArray = function(out, len) {
-        for(let i = 0; i < len; i ++) {
-            out[out.length] = next() & 0x0ff;
-        }
-        return out;
+        outByteList(out, out.length, len);
     }
     setSeet(seet);
     return {
