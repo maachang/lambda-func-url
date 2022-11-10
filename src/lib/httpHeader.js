@@ -105,7 +105,7 @@ const create = function(headers, cookies) {
     // value 対象のvalueを設定します.
     //         value="value; Max-Age=2592000; Secure"
     //         ※必ず先頭文字は "value;" 必須.
-    //       や
+    //         や
     //         value={value: value, "Max-Age": 2592000, Secure: true}
     //       のような感じで設定します.
     // 戻り値: trueの場合正常に追加されました.

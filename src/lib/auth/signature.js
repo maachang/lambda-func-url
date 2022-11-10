@@ -356,6 +356,11 @@ exports.encodeToken = encodeToken;
 // 対象のトークンをデコード処理.
 // keyCode 対象のキー情報を設定します.
 // token デコード対象のトークンを設定します.
+// 戻り値: {passCode: string, sessionId: string, user: string expire: number}
+//        passCode パスコードが返却されます.
+//        sessionId セッションIDが返却されます.
+//        user ログインユーザー名が返却されます.
+//        expire expire値(ミリ秒が返却されます)
 const decodeToken = function(keyCode, token) {
     // base64からBuffer変換.
     token = Buffer.from(token, "base64");
@@ -376,12 +381,10 @@ const decodeToken = function(keyCode, token) {
     // 乱数を取得.
     let key = Buffer.alloc(_RAND_LENGTH);
     let pos = _RAND_LENGTH;
-    arraycopy(token, tokenLen - pos,
-        key, 0, _RAND_LENGTH);
+    arraycopy(token, tokenLen - pos, key, 0, _RAND_LENGTH);
     
     // 乱数でデコード.
-    decodeValue(token, 2,
-        tokenLen - pos, key);
+    decodeValue(token, 2, tokenLen - pos, key);
     key = null;
     
     // expire日付を取得
@@ -390,8 +393,7 @@ const decodeToken = function(keyCode, token) {
     const expire = convb.decodeLong(oPos, token);
 
     // hashKeyCodeでデコード.
-    decodeValue(token, 2,
-        tokenLen - pos, keyCodeHash);
+    decodeValue(token, 2, tokenLen - pos, keyCodeHash);
     
     // パスワードコードを取得.
     oPos[0] = 2;
