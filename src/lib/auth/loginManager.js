@@ -262,51 +262,6 @@ const getSession = async function(user) {
     return await sessionTable.get(undefined, {user: user});
 }
 
-// ログイントークン寿命を取得.
-let LOGIN_TOKEN_EXPIRE = process.env["LOGIN_TOKEN_EXPIRE"];
-if(LOGIN_TOKEN_EXPIRE == undefined) {
-    LOGIN_TOKEN_EXPIRE = 1;
-}
-
-// ユーザーセッションが保持する最終更新時間がexpire時間を
-// 超えていないかチェック.
-// lastModified ユーザーセッションのlastModifiedを設定します.
-// 戻り値: trueの場合、expire時間を超えています.
-const isUserSessionToExpire = function(lastModified) {
-    expire = 86400000 * LOGIN_TOKEN_EXPIRE;
-    if(Date.now >= (lastModified + expire)) {
-        return true;
-    }
-    return false;
-}
-
-// ユーザーセッションを更新.
-// user 対象のユーザ名を設定します.
-// passCode 対象のパスコードを設定します.
-// sessionId 対象のセッションIDを設定します.
-// 戻り値: trueの場合、ユーザーセッションの更新成功です.
-const updateSession = async function(
-    user, passCode, sessionId) {
-    const sessionInfo = await sessionTable.get(
-        undefined, {user: user});
-    if(sessionInfo == null) {
-        // 取得出来ない場合は更新失敗.
-        return false;
-    }
-    // パスコードとセッションIDをチェック.
-    if(passCode != sessionInfo.passCode ||
-        sessionId != sessionInfo.sessionId ||
-        isUserSessionToExpire(sessionInfo.lastModified)) {
-        // 一致しない場合は更新失敗.
-        return false;
-    }
-    // 更新時間を更新する.
-    sessionInfo.lastModified = Date.now();
-    // セッション更新
-    return await sessionTable.put(
-        undefined, {user: user}, sessionInfo);
-}
-
 // ユーザーセッションを削除.
 // user 対象のユーザ名を設定します.
 // passCode 対象のパスコードを設定します.
@@ -329,6 +284,55 @@ const removeSession = async function(
     // セッション更新
     return await sessionTable.remove(
         undefined, {user: user});
+}
+
+// ログイントークン寿命を取得.
+let LOGIN_TOKEN_EXPIRE = process.env["LOGIN_TOKEN_EXPIRE"];
+if(LOGIN_TOKEN_EXPIRE == undefined) {
+    LOGIN_TOKEN_EXPIRE = 1;
+}
+
+// １日のミリ秒.
+const ONE_DAY_MS = 86400000;
+
+// ユーザーセッションが保持する最終更新時間がexpire時間を
+// 超えていないかチェック.
+// lastModified ユーザーセッションのlastModifiedを設定します.
+// 戻り値: trueの場合、expire時間を超えています.
+const isUserSessionToExpire = function(lastModified) {
+    const expire = ONE_DAY_MS * LOGIN_TOKEN_EXPIRE;
+    if(Date.now >= (lastModified + expire)) {
+        return true;
+    }
+    return false;
+}
+
+// ユーザーセッションを更新.
+// user 対象のユーザ名を設定します.
+// passCode 対象のパスコードを設定します.
+// sessionId 対象のセッションIDを設定します.
+// 戻り値: trueの場合、ユーザーセッションの更新成功です.
+const updateSession = async function(
+    user, passCode, sessionId) {
+    const sessionInfo = await sessionTable.get(
+        undefined, {user: user});
+    if(sessionInfo == null) {
+        // 取得出来ない場合は更新失敗.
+        return false;
+    }
+    // パスコードとセッションIDをチェック.
+    if(passCode != sessionInfo.passCode ||
+        sessionId != sessionInfo.sessionId ||
+        isUserSessionToExpire(
+            sessionInfo.lastModified)) {
+        // 一致しない場合は更新失敗.
+        return false;
+    }
+    // 更新時間を更新する.
+    sessionInfo.lastModified = Date.now();
+    // セッション更新
+    return await sessionTable.put(
+        undefined, {user: user}, sessionInfo);
 }
 
 // ユーザーログイン.
@@ -377,34 +381,71 @@ const getLoginTokenKeyCode = function(request) {
 // ログイン処理.
 // resHeader レスポンスヘッダ(./lib/httpHeader.js)
 // request Httpリクエスト情報.
-// 戻り値: trueの場合、ログインされています.
+// 戻り値: trueの場合、ログインに成功しました.
 const login = async function(resHeader, request,
     user, password) {
-    // ログイン処理.
-    const result = await loginAction(user, password);
-    // ログイン成功.
-    if(result == true) {
-        // 新しいセッションを作成.
-        const sessions = await createSession(user);
-        if(sessions == null) {
-            // 新しいセッション取得に失敗.
-            throw new Error("Failed to get a login session.");
+    try {
+        // ログイン処理.
+        const result = await loginAction(user, password);
+        // ログイン成功.
+        if(result == true) {
+            // 新しいセッションを作成.
+            const sessions = await createSession(user);
+            if(sessions == null) {
+                // 新しいセッション取得に失敗.
+                throw new Error("Failed to get a login session.");
+            }
+
+            // ログイントークン作成用のキーコードを取得.
+            const keyCode = getLoginTokenKeyCode(request);
+
+            // ログイントークンを作成.
+            const token = sig.encodeToken(
+                keyCode, user, sessions.passCode,
+                sessions.sessionId, LOGIN_TOKEN_EXPIRE);
+
+            // レスポンスにセッションキーを設定.
+            resHeader.putCookie(COOKIE_SESSION_KEY, {value: token});
+            return true;
         }
-
-        // ログイントークン作成用のキーコードを取得.
-        const keyCode = getLoginTokenKeyCode(request);
-
-        // ログイントークンを作成.
-        const token = sig.encodeToken(
-            keyCode, user, sessions.passCode,
-            sessions.sessionId, LOGIN_TOKEN_EXPIRE);
-
-        // レスポンスにセッションキーを設定.
-        resHeader.putCookie(COOKIE_SESSION_KEY, {value: token});
-        return true;
+    } catch(e) {
+        console.log("I failed to login", e);
+        // ログイン失敗.
+        return false;
     }
-    // ログイン失敗.
-    return false;
+}
+
+// ログアウト処理.
+// resHeader レスポンスヘッダ(./lib/httpHeader.js)
+// request Httpリクエスト情報.
+// 戻り値: trueの場合、ログアウトに成功しました.
+const logout = async function(resHeader, request) {
+    try {
+        // cookieからログイントークンを取得.
+        const token = request.header.getCookie(COOKIE_SESSION_KEY);
+        if(token == undefined) {
+            // ログインされていない.
+            return false;
+        }
+        // トークンの解析・内容を取得.
+        const keyCode = getLoginTokenKeyCode(request);
+        const dtoken = sig.decodeToken(keyCode, token);
+        // ユーザーセッションを削除.
+        const res = await removeSession(
+            dtoken.user, dtoken.passCode, dtoken.sessionId);
+        // ユーザセッション削除に成功した場合.
+        if(res == true) {
+            // cookieセッションを削除.
+            resHeader.putCookie(COOKIE_SESSION_KEY,
+                {value: token, expires: new Date(0).toUTCString()});
+        }
+        return ret;
+    } catch(e) {
+        // ログイン確認エラー
+        console.log("I failed to logout", e);
+        // ログアウト失敗.
+        return false;
+    }
 }
 
 // ログイン確認.
@@ -413,9 +454,10 @@ const login = async function(resHeader, request,
 //       0: トークンの存在確認を行います.
 //       1: level = 0 + トークンのexpireチェックを行います.
 //       2: level = 1 + トークンをs3kvsに問い合わせます.
+// resHeader レスポンスヘッダ(./lib/httpHeader.js)
 // request Httpリクエスト情報.
 // 戻り値: trueの場合、ログインされています.
-const isLogin = async function(level, request) {
+const isLogin = async function(level, resHeader, request) {
     try {
         // cookieからログイントークンを取得.
         const token = request.header.getCookie(COOKIE_SESSION_KEY);
@@ -443,8 +485,22 @@ const isLogin = async function(level, request) {
             return true;
         }
         // ユーザーセッションをアップデート.
-        return await updateSession(
+        const ret = await updateSession(
             dtoken.user, dtoken.passCode, dtoken.sessionId);
+        // アップデート成功の場合.
+        if(ret == true) {
+            // セッションアップデートのタイミングで
+            // cookie内容も更新する.
+
+            // 更新するログイントークンを作成.
+            const nextToken = sig.encodeToken(
+                keyCode, dtoken.user, dtoken.passCode,
+                dtoken.sessionId, LOGIN_TOKEN_EXPIRE);
+
+            // レスポンスにセッションキーを再設定.
+            resHeader.putCookie(COOKIE_SESSION_KEY, {value: nextToken});
+        }
+        return ret;
     } catch(e) {
         // ログイン確認エラー
         console.log("Login verification failed.", e);
@@ -470,10 +526,11 @@ exports.removeOption = function(user, options) {
 exports.userList = userList;
 exports.createSession = createSession;
 exports.getSession = getSession;
-exports.updateSession = updateSession;
 exports.removeSession = removeSession;
+exports.updateSession = updateSession;
 exports.loginAction = loginAction;
 exports.login = login;
+exports.logout = logout;
 exports.isLogin = isLogin;
 
 })(global);
