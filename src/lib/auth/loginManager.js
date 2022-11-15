@@ -335,11 +335,11 @@ const updateSession = async function(
         undefined, {user: user}, sessionInfo);
 }
 
-// ユーザーログイン.
+// ユーザーログイン確認.
 // user 対象のユーザ名を設定します.
 // password パスワードを設定します.
 // 戻り値: trueの場合、ログイン成功です.
-const loginAction = async function(user, password) {
+const confirmLogin = async function(user, password) {
     if(!useString(password)) {
         return false;
     }
@@ -386,7 +386,7 @@ const login = async function(resHeader, request,
     user, password) {
     try {
         // ログイン処理.
-        const result = await loginAction(user, password);
+        const result = await confirmLogin(user, password);
         // ログイン成功.
         if(result == true) {
             // 新しいセッションを作成.
@@ -528,7 +528,6 @@ exports.createSession = createSession;
 exports.getSession = getSession;
 exports.removeSession = removeSession;
 exports.updateSession = updateSession;
-exports.loginAction = loginAction;
 exports.login = login;
 exports.logout = logout;
 exports.isLogin = isLogin;

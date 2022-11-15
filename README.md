@@ -15,7 +15,7 @@ AWSのLambdaにおいて昨今(2022年ちょっと)から `関数URL` と言う�
 これに伴い、以下のように対象のLambdaに `関数URL` を定義すると対象EndPointのURLが定義されるので以下のように
 
 ~~~js
-exports.handler = function(event) {
+exports.handler = async function(event) {
     return {
         'statusCode': 200,
         'body': JSON.stringify(event, null, "  ");
