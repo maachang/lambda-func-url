@@ -20,7 +20,7 @@ const vm = require('vm');
 const fs = require('fs');
 
 // カレントパス名.
-const currentPath = __dirname + "/";
+const _CURRENT_PATH = __dirname + "/";
 
 // 元のrequire.
 const srcRequire = require;
@@ -49,7 +49,7 @@ const trimPath = function(jsFlag, name) {
 // name 対象のファイル名を設定します.
 // 戻り値: ファイル名が存在する場合 true.
 const isFile = function(name) {
-    return fs.existsSync(currentPath + name);
+    return fs.existsSync(_CURRENT_PATH + name);
 }
 
 // ファイルを詠み込む.
@@ -57,7 +57,7 @@ const isFile = function(name) {
 // 戻り値: ファイル内容がstringで返却されます.
 //        存在しない場合は null が返却されます.
 const readFile = function(name) {
-    const fileName = currentPath + name;
+    const fileName = _CURRENT_PATH + name;
     if(isFile(fileName)) {
         return fs.readFileSync(fileName);
     }
@@ -90,12 +90,13 @@ const originRequire = function(name, js) {
         // runInContextはsandboxなので、現在のglobalメモリを設定する.
         let memory = _g;
         let context = vm.createContext(memory);
+        memory = null;
     
         // スクリプト実行環境を生成.
         let script = new vm.Script(srcScript, {filename: name});
         srcScript = null;
         const executeJs = script.runInContext(context, {filename: name});
-        script = null; context = null; memory = null;
+        script = null; context = null;
     
         // スクリプトを実行して、exportsの条件を取得.
         var ret = {};
@@ -143,7 +144,7 @@ const frequire = function(name) {
     // ただし指定内容がJSONの場合はJSON.parseでキャッシュ
     // なしで返却.
     if(jsName.toLowerCase().endsWith(".json")) {
-        return JSON.parse(js);
+        return JSON.parse(js.toString());
     }
     // キャッシュ情報から取得.
     let ret = _GBL_FILE_VALUE_CACHE[jsName];

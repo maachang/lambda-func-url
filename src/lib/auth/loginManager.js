@@ -21,6 +21,29 @@ const s3kvs = frequire("./lib/storage/s3kvs.js");
 // login用signature.
 const sig = frequire("./lib/auth/signature.js");
 
+// １日 = ミリ秒.
+const ONE_DAY_MS = 86400000;
+
+// Cookieに格納するセッションID名.
+const COOKIE_SESSION_KEY = "lfu-session-id";
+
+// [ENV]ログイントークン作成キーコードを取得.
+const LOGIN_TOKEN_KEYCODE = process.env["LOGIN_TOKEN_KEYCODE"];
+
+// [ENV]最大表示件数.
+let LOGIN_USER_LIST_LIMIT = process.env["LOGIN_USER_LIST_LIMIT"]|0;
+if(LOGIN_USER_LIST_LIMIT >= 100) {
+    LOGIN_USER_LIST_LIMIT = 100;
+} else if(LOGIN_USER_LIST_LIMIT <= 0) {
+    LOGIN_USER_LIST_LIMIT = 25;
+}
+
+// [ENV]ログイントークン寿命を取得.
+let LOGIN_TOKEN_EXPIRE = process.env["LOGIN_TOKEN_EXPIRE"];
+if(LOGIN_TOKEN_EXPIRE == undefined) {
+    LOGIN_TOKEN_EXPIRE = 1;
+}
+
 // デフォルトのS3Kvs.
 const defS3Kvs = s3kvs.create();
 
@@ -186,14 +209,6 @@ const settingOption = async function(putFlag, user, options) {
         {user: user}, userInfo);
 }
 
-// 最大表示件数.
-let LOGIN_USER_LIST_LIMIT = process.env["LOGIN_USER_LIST_LIMIT"]|0;
-if(LOGIN_USER_LIST_LIMIT >= 100) {
-    LOGIN_USER_LIST_LIMIT = 100;
-} else if(LOGIN_USER_LIST_LIMIT <= 0) {
-    LOGIN_USER_LIST_LIMIT = 25;
-}
-
 // ユーザ名一覧を取得.
 // page ページ番号を設定します.
 //      ページ番号は１から設定します.
@@ -286,15 +301,6 @@ const removeSession = async function(
         undefined, {user: user});
 }
 
-// ログイントークン寿命を取得.
-let LOGIN_TOKEN_EXPIRE = process.env["LOGIN_TOKEN_EXPIRE"];
-if(LOGIN_TOKEN_EXPIRE == undefined) {
-    LOGIN_TOKEN_EXPIRE = 1;
-}
-
-// １日のミリ秒.
-const ONE_DAY_MS = 86400000;
-
 // ユーザーセッションが保持する最終更新時間がexpire時間を
 // 超えていないかチェック.
 // lastModified ユーザーセッションのlastModifiedを設定します.
@@ -357,12 +363,6 @@ const confirmLogin = async function(user, password) {
     // ログイン成功.
     return true;
 }
-
-// Cookieに格納するセッションID名.
-const COOKIE_SESSION_KEY = "lfu-session-id";
-
-// ログイントークン作成キーコードを取得.
-const LOGIN_TOKEN_KEYCODE = process.env["LOGIN_TOKEN_KEYCODE"];
 
 // ログイントークンキーコードを取得.
 // request Httpリクエスト情報.
@@ -458,6 +458,12 @@ const logout = async function(resHeader, request) {
 // request Httpリクエスト情報.
 // 戻り値: trueの場合、ログインされています.
 const isLogin = async function(level, resHeader, request) {
+    // マイナス値の場合は処理しない.
+    level = level|0;
+    if(level < 0) {
+        // ログイン済みとみなす.
+        return true;
+    }
     try {
         // cookieからログイントークンを取得.
         const token = request.header.getCookie(COOKIE_SESSION_KEY);
@@ -465,7 +471,6 @@ const isLogin = async function(level, resHeader, request) {
             // ログインされていない.
             return false;
         }
-        level = level|0;
         // level=0の場合、ログインされているとみなす.
         if(level == 0) {
             // level=0的にログイン担保.
@@ -509,6 +514,47 @@ const isLogin = async function(level, resHeader, request) {
     }
 }
 
+// ログイン済みか確認をするfilter実行.
+// outBody Array[0]に返却対象の処理結果のレスポンスBodyを設定します.
+// resState: レスポンスステータス(httpStatus.js).
+// resHeader レスポンスヘッダ(httpHeader.js).
+// request Httpリクエスト情報.
+// noCheckPaths チェック対象外のパス郡を設定します.
+//              {"/index.html", true} のような感じで.
+// 戻り値: true / false(boolean).
+//        trueの場合filter処理で処理終了となります.
+const filter = async function(
+    outBody, resState, resHeader, request, noCheckPaths) {
+    // チェック対象外のパス.
+    if(noCheckPaths[request.path]) {
+        return false;
+    }
+    // 拡張子を取得.
+    const extension = request.extension;
+    let level = 0;
+    // 動的処理のリクエストの場合.
+    if(extension == undefined || extension == "jhtml") {
+        // トークンの完全チェック.
+        level = 2;
+    // htmlファイルの場合.
+    } else if(extension == "htm" || extension == "html") {
+        // トークンの存在チェック.
+        level = 1;
+    // コンテンツ等の情報.
+    } else {
+        // チェックしない.
+        level = -1;
+    }
+    // ログインされていない事を確認.
+    if(!isLogin(level, resHeader, request)) {
+        // エラー403返却.
+        resState.setStatus(403);
+        return true;
+    }
+    // ログインされているかチェックしない場合.
+    return false;
+}
+
 ////////////////////////////////////////////////////////////////
 // 外部定義.
 ////////////////////////////////////////////////////////////////
@@ -531,5 +577,6 @@ exports.updateSession = updateSession;
 exports.login = login;
 exports.logout = logout;
 exports.isLogin = isLogin;
+exports.filter = filter;
 
 })(global);

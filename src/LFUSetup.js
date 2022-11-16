@@ -187,11 +187,22 @@ const _ENV_FILTER_FUNCTION = "FILTER_FUNCTION";
 // また `start` メソッドで渡された場合は、そちらが優先となります.
 const _ENV_ORIGIN_MIME = "ORIGIN_MIME";
 
+// [環境変数] pathの最後が/の時のインデックスパス内容.
+// この値が設定されていない場合はインデックスパスは `index.html` が
+// 設定されます.
+const _ENV_INDEX_PATH = "LFU_INDEX_PATH";
+
 // [mainExternal]S3の場合.
 const _MAIN_S3_EXTERNAL = 0;
 
 // [mainExternal]Gitの場合.
 const _MAIN_GIT_EXTERNAL = 1;
+
+// [ENV]インデックスパス.
+let INDEX_PATH = process.env[_ENV_INDEX_PATH];
+if(INDEX_PATH == undefined) {
+    INDEX_PATH = "index.html";
+}
 
 // 環境変数を取得解析して返却. 
 const analysisEnv = function() {
@@ -489,13 +500,11 @@ const getPathToExtends = function(path) {
 }
 
 // パス情報の変換処理.
-// 例えば xxx/ でパスが終わってる場合は
-// xxx/index として変換処理を行います.
-// path 対象のパスを設定します.
-// 戻り値: ディレクトリ指定の場合は index と言う名前を追加します.
+// 戻り値: ディレクトリ指定の場合は 環境変数で設定された
+//        IndexPathを追加します.
 const convertHttpPath = function(path) {
     if((path = path.trim()).endsWith("/")) {
-        return path += "index";
+        return path += INDEX_PATH;
     }
     return path;
 }
@@ -631,6 +640,7 @@ const resultJsOut = function(resState, resHeader, resBody) {
 // event 対象のイベントを設定します.
 // 戻り値: リクエスト情報(object)が返却されます.
 const createRequest = function(event) {
+    const path = convertHttpPath(event.rawPath);
     // リクエスト情報.
     return {
         // httpメソッド.
@@ -638,14 +648,14 @@ const createRequest = function(event) {
         /// httpプロトコル(HTTP/1.1).
         ,protocol: event.requestContext.http.protocol
         // EndPoint(string)パス.
-        ,path: convertHttpPath(event.rawPath)
+        ,path: path
         // リクエストヘッダ(httpHeaderオブジェクト(put, get, getKeys, toHeaders)).
         ,header: httpHeader.create(event.headers, event.cookies)
         // urlパラメータ(Object).
         ,queryParams: getQueryParams(event)
         // EndPoint(string)パスに対するファイルの拡張子.
         // undefinedの場合、js実行結果を返却させる.
-        ,extension: getPathToExtends(event.rawPath)
+        ,extension: getPathToExtends(path)
         // 拡張子mimeType変換用.
         ,mimeType: getMimeType
         // 元のeventをセット.
