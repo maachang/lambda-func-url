@@ -39,6 +39,15 @@ let LAST_CREDENTIAL_TIME = 0;
 // クレデンシャル取得タイムアウト.
 let CREDENTIAL_TIMEOUT = 5000;
 
+// [ENV]AWSクレデンシャル: アクセスキー.
+const ENV_AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID";
+
+// [ENV]AWSクレデンシャル: アクセスシークレットキー.
+const ENV_AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY";
+
+// [ENV]AWSクレデンシャル: セッショントークン.
+const ENV_AWS_SESSION_TOKEN = "AWS_SESSION_TOKEN";
+
 // デフォルトのクレデンシャルを取得.
 // 戻り値: {accessKey: string, secretAccessKey: string,
 //           sessionToken: string}
@@ -53,9 +62,9 @@ const getCredential = function() {
     if(DEFAULT_CREDENTIAL == null ||
         LAST_CREDENTIAL_TIME < now) {
         DEFAULT_CREDENTIAL = {
-            accessKey: process.env["AWS_ACCESS_KEY_ID"]
-            ,secretAccessKey: process.env["AWS_SECRET_ACCESS_KEY"]
-            ,sessionToken: process.env["AWS_SESSION_TOKEN"]
+            accessKey: process.env[ENV_AWS_ACCESS_KEY_ID]
+            ,secretAccessKey: process.env[ENV_AWS_SECRET_ACCESS_KEY]
+            ,sessionToken: process.env[ENV_AWS_SESSION_TOKEN]
         };
         // 最終取得時間+タイムアウト値.
         LAST_CREDENTIAL_TIME = CREDENTIAL_TIMEOUT + now;

@@ -15,6 +15,9 @@ if(frequire == undefined) {
 // s3restApi.
 const s3 = frequire("./lib/s3restApi.js");
 
+// [ENV]メインS3Bucket名.
+const ENV_MAIN_S3_BUCKET = "MAIN_S3_BUCKET";
+
 // バケット名が指定されない場合は、環境変数で定義された
 // バケット情報を利用する.
 // bucket 設定バケット名を設定します.
@@ -24,7 +27,7 @@ const getBucketName = function(bucket) {
     if(bucket == null || bucket == undefined ||
         bucket.length == 0) {
         // 環境変数から取得.
-        bucket = process.env["MAIN_S3_BUCKET"];
+        bucket = process.env[ENV_MAIN_S3_BUCKET];
         if(bucket == null || bucket == undefined ||
             bucket.length == 0) {
             throw new Error("Bucket name is empty.");

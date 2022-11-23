@@ -53,13 +53,6 @@ const error = function(message) {
     throw new Error("ERROR [LFUSetup] " + message);
 }
 
-// Lambdaで定義された環境変数を取得.
-// name 対象の環境変数名を設定します.
-// 戻り値: 環境変数が存在する場合返却されます.
-const getEnv = function(name) {
-    return process.env[name];
-}
-
 // カンマ[,]単位で区切ってArray返却.
 // value 文字列を設定します.
 // 戻り値: カンマで区切られた内容がArrayで返却されます.
@@ -176,13 +169,13 @@ const _ENV_NONE_GZIP = "NONE_GZIP";
 const _ENV_MAIN_S3_BUCKET = "MAIN_S3_BUCKET";
 
 // [環境変数]filterFunc読み込み先を指定.
-// この条件はexrequire(getEnv(_ENV_FILTER_FUNCTION), true, "")で
+// この条件はexrequire(process.env[_ENV_FILTER_FUNCTION], true, "")で
 // 取得されます(カレントパスなし、キャッシュなし).
 // また `start` メソッドで渡された場合は、そちらが優先となります.
 const _ENV_FILTER_FUNCTION = "FILTER_FUNCTION";
 
 // [環境変数]originMime読み込み先を指定.
-// この条件はexrequire(getEnv(_ENV_ORIGIN_MIME), true, "")で
+// この条件はexrequire(process.env[_ENV_ORIGIN_MIME], true, "")で
 // 取得されます(カレントパスなし、キャッシュなし).
 // また `start` メソッドで渡された場合は、そちらが優先となります.
 const _ENV_ORIGIN_MIME = "ORIGIN_MIME";
@@ -207,21 +200,21 @@ if(INDEX_PATH == undefined) {
 // 環境変数を取得解析して返却. 
 const analysisEnv = function() {
     // s3 or git メインで利用する外部接続先.
-    let mainExternal = getEnv(_ENV_MAIN_EXTERNAL);
+    let mainExternal = process.env[_ENV_MAIN_EXTERNAL];
     // request接続先のカレントパス.
-    let requestPath = getEnv(_ENV_REQUEST_PATH);
+    let requestPath = process.env[_ENV_REQUEST_PATH];
     // 外部接続先's3'の接続基本設定.
-    let s3Connect = getEnv(_ENV_S3_CONNECT);
+    let s3Connect = process.env[_ENV_S3_CONNECT];
     // 外部接続先'github'の接続基本設定.
-    let gitConnect = getEnv(_ENV_GIT_CONNECT);
+    let gitConnect = process.env[_ENV_GIT_CONNECT];
     // キャッシュタイムアウト.
-    let cacheTimeout = getEnv(_ENV_CACHE_TIMEOUT);
+    let cacheTimeout = process.env[_ENV_CACHE_TIMEOUT];
     // 基本キャッシュなし条件.
-    let noneCache = getEnv(_ENV_NONE_CACHE);
+    let noneCache = process.env[_ENV_NONE_CACHE];
     // 基本GZIPなし条件.
-    let noneGzip = getEnv(_ENV_NONE_GZIP);
+    let noneGzip = process.env[_ENV_NONE_GZIP];
     // メインS3Bucket名.
-    let mainS3Bucket = getEnv(_ENV_MAIN_S3_BUCKET);
+    let mainS3Bucket = process.env[_ENV_MAIN_S3_BUCKET];
 
     // メインで利用する外部接続先の存在確認.
     if(mainExternal == undefined) {
@@ -439,7 +432,7 @@ const getMimeType = function(extention) {
     // originMimeFuncが存在しない場合.
     if(_originMimeFunction == undefined) {
         // 環境変数に定義されてる場合それを利用.
-        const path = getEnv(_ENV_ORIGIN_MIME);
+        const path = process.env[_ENV_ORIGIN_MIME];
         if(path != undefined) {
             const res = exrequire(path, true, "");
             setOriginMimeFunction(res);
@@ -780,7 +773,7 @@ const main_handler = async function(event, context) {
         // filterFunctionが未設定の場合.
         if(_filterFunction == undefined) {
             // 環境変数で定義されている場合はそれをロード.
-            const path = getEnv(_ENV_FILTER_FUNCTION);
+            const path = process.env[_ENV_FILTER_FUNCTION];
             if(typeof(path) == "string") {
                 // データーロード.
                 const res = await exrequire(path, true, "");

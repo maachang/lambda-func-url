@@ -32,6 +32,10 @@ const MINIFY_DIR = ".minSrc";
 const getPath = function() {
     // 対象パスを取得.
     let path = process.argv[2];
+    // パスが設定されていません.
+    if(path == undefined) {
+        throw new Error("Target path is not set.");
+    }
 
     // 0x0d, 0x0d が終端に設定されている場合.
     // ※どうやらLinux上でcrlf改行のbashファイルから呼び出した場合

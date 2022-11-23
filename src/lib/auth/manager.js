@@ -27,11 +27,20 @@ const ONE_DAY_MS = 86400000;
 // Cookieに格納するセッションID名.
 const COOKIE_SESSION_KEY = "lfu-session-id";
 
+// [ENV]ログイントークン作成キーコード.
+const ENV_LOGIN_TOKEN_KEYCODE = "LOGIN_TOKEN_KEYCODE";
+
+// [ENV]最大ユーザー表示件数設定.
+const ENV_LOGIN_USER_LIST_LIMIT = "LOGIN_USER_LIST_LIMIT";
+
+// [ENV]ログイントークン寿命定義.
+const ENV_LOGIN_TOKEN_EXPIRE = "LOGIN_TOKEN_EXPIRE";
+
 // [ENV]ログイントークン作成キーコードを取得.
-const LOGIN_TOKEN_KEYCODE = process.env["LOGIN_TOKEN_KEYCODE"];
+const LOGIN_TOKEN_KEYCODE = process.env[ENV_LOGIN_TOKEN_KEYCODE];
 
 // [ENV]最大表示件数.
-let LOGIN_USER_LIST_LIMIT = process.env["LOGIN_USER_LIST_LIMIT"]|0;
+let LOGIN_USER_LIST_LIMIT = process.env[ENV_LOGIN_USER_LIST_LIMIT]|0;
 if(LOGIN_USER_LIST_LIMIT >= 100) {
     LOGIN_USER_LIST_LIMIT = 100;
 } else if(LOGIN_USER_LIST_LIMIT <= 0) {
@@ -39,7 +48,7 @@ if(LOGIN_USER_LIST_LIMIT >= 100) {
 }
 
 // [ENV]ログイントークン寿命を取得.
-let LOGIN_TOKEN_EXPIRE = process.env["LOGIN_TOKEN_EXPIRE"];
+let LOGIN_TOKEN_EXPIRE = process.env[ENV_LOGIN_TOKEN_EXPIRE];
 if(LOGIN_TOKEN_EXPIRE == undefined) {
     LOGIN_TOKEN_EXPIRE = 1;
 }
@@ -213,7 +222,7 @@ const settingOption = async function(putFlag, user, options) {
 // page ページ番号を設定します.
 //      ページ番号は１から設定します.
 // max １ページで表示する数を設定します.
-//     最大は100で、設定しない場合は 環境変数 `LOGIN_USER_ONE_LIST` の
+//     最大は100で、設定しない場合は 環境変数 `LOGIN_USER_LIST_LIMIT` の
 //     値が設定され、存在しない場合は25が設定されます.
 const userList = async function(page, max) {
     if(max == undefined || max == null) {
