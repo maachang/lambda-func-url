@@ -450,7 +450,7 @@ const logout = async function(resHeader, request) {
             resHeader.putCookie(COOKIE_SESSION_KEY,
                 {value: token, expires: new Date(0).toUTCString()});
         }
-        return ret;
+        return res;
     } catch(e) {
         // ログイン確認エラー
         console.error("I failed to logout", e);
