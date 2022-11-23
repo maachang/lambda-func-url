@@ -14,6 +14,7 @@
         ,"src/lib/httpsClient.js"
         ,"src/lib/mimeType.js"
         ,"src/lib/s3restApi.js"
+        ,"src/lib/util/xor128.js"
         ,"src/lib/storage/convb.js"
         ,"src/lib/storage/jsonb.js"
         ,"src/lib/storage/s3kvs.js"
