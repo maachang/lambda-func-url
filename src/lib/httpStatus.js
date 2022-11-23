@@ -84,8 +84,10 @@ const toMessage = function(status) {
 // status 初期ステータスを設定します.
 // 戻り値: HTTPステータスが返却されます.
 const create = function(status) {
+    // ステータス.
     let hstate = typeof(status) != "number" ?
         200 : status|0;
+    // リダイレクトURL.
     let httpRedirectURL = undefined;
 
     // オブジェクト返却.
@@ -121,10 +123,15 @@ const create = function(status) {
     }
 
     // リダイレクト先の情報をセット.
-    // status HTTPステータスを設定します.
     // url リダイレクト先のURLを設定します.
+    // status HTTPステータスを設定します.
     // 戻り値: このオブジェクトが返却されます.
-    ret.redirect = function(status, url) {
+    ret.redirect = function(url, status) {
+        // ステータスが設定されていない場合.
+        if((status|0) == 0) {
+            // 301(getでリダイレクト)をセット.
+            status = 301;
+        }
         return _setStatus(status, url);
     }
 
@@ -137,7 +144,7 @@ const create = function(status) {
     // リダイレクト先URLが設定されているか確認.
     // 戻り値: trueの場合、リダイレクトURLが設定されています.
     ret.isRedirect = function() {
-        httpRedirectURL != undefined;
+        return httpRedirectURL != undefined;
     }
 
     // リダイレクトURLを取得.

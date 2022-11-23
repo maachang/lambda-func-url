@@ -311,6 +311,17 @@ const lufDone = function(exitFlag, res, fail, success) {
     }
 }
 
+// cookie情報を設定.
+const setEventCookie = function(event, cookie) {
+    if(cookie == undefined) {
+        return;
+    }
+    const list = cookie.split(";");
+    const len = list.length;
+    for(let i = 0; i < len; i ++) {
+        event.cookies[i] = list[i].trim();
+    }
+}
 // LFUのイベントを作成.
 // req Httpリクエストオブジェクトを設定します.
 // 戻り値: Lfuイベントが返却されます.
@@ -319,7 +330,7 @@ const getEvent = function(req, body) {
     const ip = getIp(req);
     const now = new Date();
     // LambdaFunctionUrlsに渡す
-    // 基本イベントをセット.
+    // 基本イベントをセット(version 2.0).
     const event = {
         "version": "2.0",
         "routeKey": "$default",
@@ -333,6 +344,8 @@ const getEvent = function(req, body) {
             "x-forwarded-for": ip,
             "accept": "*/*"
         },
+        "cookies": [
+        ],
         "queryStringParameters": {},
         "requestContext": {
             "accountId": "anonymous",
@@ -355,9 +368,16 @@ const getEvent = function(req, body) {
     };
     // httpヘッダをセット.
     let headers = req.headers;
+    // cookieヘッダを取得.
+    let cookie = headers.cookie;
+    // cookieヘッダを削除.
+    delete headers.cookie;
     for(let k in headers) {
         event.headers[k] = headers[k];
     }
+    // cookieヘッダをEventにセット.
+    setEventCookie(event, cookie);
+    cookie = null;
     // getパラメータを取得.
     event.rawQueryString = getQueryParams(req);
     if(event.rawQueryString.length > 0) {

@@ -12,8 +12,11 @@ if(frequire == undefined) {
     frequire = global.frequire;
 }
 
+// プロトコル.
+const PROTOCOL = "https";
+
 // httpsライブラリ.
-const https = frequire('https');
+const https = frequire(PROTOCOL);
 
 // urlParamsを文字列に変換する.
 // urlParams 解析されたURLパラメータを設定します.
@@ -91,8 +94,8 @@ const getUrl = function(host, path, port, urlParams) {
     }
     // URLを作成.
     return ((port|0) > 0) ?
-        "https://" + host + ":" + (port|0) + "/" + path + urlParams:
-        "https://" + host + "/" + path + urlParams;
+        PROTOCOL + "://" + host + ":" + (port|0) + "/" + path + urlParams:
+        PROTOCOL + "://" + host + "/" + path + urlParams;
 }
 
 // ヘッダ情報のキー文字を小文字変換.

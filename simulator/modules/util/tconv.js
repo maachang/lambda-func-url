@@ -75,9 +75,6 @@ exports.toFloat = toFloat;
 exports.toBool = toBool;
 exports.toDate = toDate;
 
-// 変換タイプ.
-exports.TYPES = ["Number", "Int", "Boolean", "Date"];
-
 // type変換.
 //    [string, str] 文字列で返却します.
 //    [number, num, float, double] 浮動小数点で返却します.
@@ -90,7 +87,7 @@ exports.convert = function(type, value) {
     if(type == null || type == undefined) {
         return value;
     }
-    type = type.toLowerCase();
+    type = ("" + type).toLowerCase();
     if(type == "num" || type == "number" || type == "float" || type == "double") {
         return toFloat(value);
     } else if(type == "int" || type == "integer" || type == "long") {

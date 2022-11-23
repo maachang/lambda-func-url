@@ -22,7 +22,6 @@ const parseCookie = function(out, value) {
 //         ["key=value", "key=value"]がセットされます.
 // 戻り値: HttpHeaderオブジェクトが返却されます.
 const create = function(headers, cookies) {
-
     // ヘッダリストを設定.
     const headList = {};
     if(headers != undefined && headers != null) {
@@ -37,7 +36,7 @@ const create = function(headers, cookies) {
     if(cookies != undefined && cookies != null) {
         const len = cookies.length;
         for(let i = 0; i < len; i ++) {
-            parseCookie(cookieList, {value: cookies[i]});
+            parseCookie(cookieList, cookies[i]);
         }
     }
 

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// lambda側のjsファイルをrequireする.
+// lambda側のjsファイルをrequireする(file require).
 // または requreで詠み込む nodejsの基本ライブラリもrequireする.
 // script.runInContext() で実行した場合、context=global設定していても、requireが
 // 利用できない.

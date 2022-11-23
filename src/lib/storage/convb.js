@@ -284,13 +284,20 @@ const decodeFloat = function(pos, bin) {
 exports.decodeFloat = decodeFloat;
 
 // long型の32bit計算係数.
-const _LONG_BY32 = 0x100000000;    
+const _LONG_BY32 = 0x100000000;
 
 // long(64bit整数)のエンコード.
 // out バイナリをセットするArrayを設定します.
 // value long(64bit整数)を設定します.
 const encodeLong = function(out, value) {
-    const high = (value / _LONG_BY32)|0;
+    let high = (value / _LONG_BY32)|0;
+    if(high != 0) {
+        if(high > 0) {
+            high += 1;
+        } else {
+            high -= 1;
+        }
+    }
     const low = (((value / _LONG_BY32) - high) * _LONG_BY32)|0;
     let p = out.length;
     out[p ++] = low & 0x0ff;

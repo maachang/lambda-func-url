@@ -381,6 +381,8 @@ const getLoginTokenKeyCode = function(request) {
 // ログイン処理.
 // resHeader レスポンスヘッダ(./lib/httpHeader.js)
 // request Httpリクエスト情報.
+// user 対象のユーザー名を設定します.
+// password 対象のパスワードを設定します.
 // 戻り値: trueの場合、ログインに成功しました.
 const login = async function(resHeader, request,
     user, password) {
@@ -409,10 +411,10 @@ const login = async function(resHeader, request,
             return true;
         }
     } catch(e) {
-        console.log("I failed to login", e);
-        // ログイン失敗.
-        return false;
+        console.error("I failed to login", e);
     }
+    // ログイン失敗.
+    return false;
 }
 
 // ログアウト処理.
@@ -442,7 +444,7 @@ const logout = async function(resHeader, request) {
         return ret;
     } catch(e) {
         // ログイン確認エラー
-        console.log("I failed to logout", e);
+        console.error("I failed to logout", e);
         // ログアウト失敗.
         return false;
     }
@@ -479,6 +481,7 @@ const isLogin = async function(level, resHeader, request) {
         // トークンの解析.
         const keyCode = getLoginTokenKeyCode(request);
         const dtoken = sig.decodeToken(keyCode, token);
+
         // expire値を超えている場合.
         if(Date.now() >= dtoken.expire) {
             // ログインされていない.
@@ -508,7 +511,7 @@ const isLogin = async function(level, resHeader, request) {
         return ret;
     } catch(e) {
         // ログイン確認エラー
-        console.log("Login verification failed.", e);
+        console.error("Login verification failed.", e);
         // ログインされていない.
         return false;
     }
@@ -526,7 +529,8 @@ const isLogin = async function(level, resHeader, request) {
 const filter = async function(
     outBody, resState, resHeader, request, noCheckPaths) {
     // チェック対象外のパス.
-    if(noCheckPaths[request.path]) {
+    if(noCheckPaths != undefined && noCheckPaths != null &&
+        noCheckPaths[request.path]) {
         return false;
     }
     // 拡張子を取得.
@@ -539,14 +543,14 @@ const filter = async function(
     // htmlファイルの場合.
     } else if(extension == "htm" || extension == "html") {
         // トークンの存在チェック.
-        level = 1;
-    // コンテンツ等の情報.
+        level = 2;
+    // メイン以外のコンテンツ情報.
     } else {
         // チェックしない.
         level = -1;
     }
     // ログインされていない事を確認.
-    if(!isLogin(level, resHeader, request)) {
+    if(!(await isLogin(level, resHeader, request))) {
         // エラー403返却.
         resState.setStatus(403);
         return true;
