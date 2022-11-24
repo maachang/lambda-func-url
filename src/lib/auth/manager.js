@@ -584,13 +584,11 @@ const TIMED_SESSION_PASSCODE = "!)*^$#|\n" + TIMED_SESSION_USER;
 const createTimedSession = function(request, expore) {
     // ログイントークンキーコードを取得.
     const tokenKeyCode = getLoginTokenKeyCode(request);
-    // expire時間を取得.
-    const timeout = Date.now() + expore;
     // トークン発行.
     return sig.encodeToken(
         tokenKeyCode + "|\n" + request.header.get("host"),
         TIMED_SESSION_USER, TIMED_SESSION_PASSCODE,
-        sig.createSessionId(34), timeout);
+        sig.createSessionId(34), null, expore);
 }
 
 // ログインアクセス時の時限的セッションを復元.

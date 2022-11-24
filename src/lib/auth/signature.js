@@ -303,12 +303,15 @@ const MAX_STRING_LENGTH = 128;
 // user 対象のユーザ名を設定します.
 // passCode 対象のパスコードを設定します.
 // sessionId 対象のセッションIDを設定します.
-// expire expire値(日付)を設定します.
-//        この設定条件が日付の理由はs3の最低削除時間が日付のため、
-//        この値に合わせたものになります.
+// expireDate expire値(日付)を設定します.
+//            この設定条件が日付の理由はs3の最低削除時間が日付のため、
+//            この値に合わせたものになります.
+//            ミリ秒設定を行う場合は、ここは null を設定します.
+// expireMs ミリ秒単位でExpire値を設定したい場合は設定します.
+//          この場合は `expireDate=null` を設定します.
 // 戻り値: Buffer情報が返却されます.
 const encodeToken = function(
-    keyCode, user, passCode, sessionId, expire) {
+    keyCode, user, passCode, sessionId, expireDate, expireMs) {
     if(typeof(user) != "string") {
         throw new Error("User is not set.");
     } else if(typeof(passCode) != "string") {
@@ -323,8 +326,8 @@ const encodeToken = function(
             "The length of the sessionId exceeds the specified value.");
     }
     // expire値(日付単位)が設定されていない場合.
-    if((expire|0) <= 0) {
-        expire = 1;
+    if(expireDate != null && (expireDate|0) <= 0) {
+        expireDate = 1;
     }
     // keyをハッシュ計算する.
     const hashKeyCode = hash(keyCode);
@@ -338,7 +341,13 @@ const encodeToken = function(
     // パスワードとユーザ名をkey変換.
     encodeValue(list, 2, hashKeyCode);
     // expire条件(日時)をセット.
-    convb.encodeLong(list, ymdDatePlus(expire|0));
+    if(expireDate != null) {
+        // 日付.
+        convb.encodeLong(list, ymdDatePlus(expireDate|0));
+    } else {
+        // ミリ秒.
+        convb.encodeLong(list, (expireMs|0) + Date.now());
+    }
     // ランダムなバイナリを取得.
     const randBin = _RAND.getBytes(_RAND_LENGTH);
     // パスワードとユーザ名と日付をランダム変換.
