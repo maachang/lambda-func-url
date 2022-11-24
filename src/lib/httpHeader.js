@@ -36,7 +36,8 @@ const create = function(headers, cookies) {
     if(cookies != undefined && cookies != null) {
         const len = cookies.length;
         for(let i = 0; i < len; i ++) {
-            parseCookie(cookieList, cookies[i]);
+            parseCookie(cookieList,
+                decodeURIComponent(cookies[i]));
         }
     }
 
@@ -96,19 +97,21 @@ const create = function(headers, cookies) {
     //          {value: value, "Max-Age": 2592000, Secure: true}
     //        のような感じで返却されます.
     ret.getCookie = function(key) {
-        return cookieList[key];
+        return cookieList[
+            ("" + key).trim().toLowerCase()];
     }
 
     // cookie情報を設定.
     // key 対象のキー名を設定します.
     // value 対象のvalueを設定します.
-    //         value="value; Max-Age=2592000; Secure"
+    //         value="value; Max-Age=2592000; Secure;"
     //         ※必ず先頭文字は "value;" 必須.
     //         や
     //         value={value: value, "Max-Age": 2592000, Secure: true}
     //       のような感じで設定します.
     // 戻り値: trueの場合正常に追加されました.
     ret.putCookie = function(key, value) {
+        key = ("" + key).trim().toLowerCase();
         const v = {};
         // 文字の場合.
         if(typeof(value) == "string") {
@@ -143,7 +146,7 @@ const create = function(headers, cookies) {
     // cookie情報を削除.
     // key 対象のキー名を設定します.
     ret.removeCookie = function(key) {
-        delete cookieList[key];
+        delete cookieList[("" + key).trim().toLowerCase()];
     }
 
     // cookie一覧を取得.
@@ -162,23 +165,32 @@ const create = function(headers, cookies) {
     ret.toCookies = function() {
         // "cookies": [....];
         const cookies = [];
-        let em, value, len;
-        len = 0;
+        let em, value, len, sameSite;
+        len = 0; sameSite = false;
         for(let k in cookieList) {
             em = cookieList[k];
             // 最初の条件は key=value条件.
-            value = "" + k + "=" + em.value;
+            value = encodeURIComponent(k) +
+                "=" + encodeURIComponent(em.value);
             for(let n in em) {
                 // valueのkey名は設定済みなので飛ばす.
                 if(n == "value") {
                     continue;
+                } else if(n == "samesite") {
+                    sameSite = true;
                 // 単一設定[Secureなど].
                 } else if(em[n] == true) {
-                    value += "; " + n;
+                    value += "; " + encodeURIComponent(n);
                 // key=value.
                 } else {
-                    value += "; " + n + "=" + em[n];
+                    value += "; " + encodeURIComponent(n) +
+                        "=" +  encodeURIComponent(em[n]);
                 }
+            }
+            // samesiteが設定されていない場合.
+            // samesite=laxを設定.
+            if(!sameSite) {
+                value += "; samesite=lax";
             }
             cookies[cookies.length] = value;
             len ++;

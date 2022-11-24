@@ -568,6 +568,51 @@ const filter = async function(
     return false;
 }
 
+// 時限的セッションのトークンユーザ名.
+const TIMED_SESSION_USER = "*#^#&8)|<!@";
+
+// 時限的トークンのトークンパスコード.
+const TIMED_SESSION_PASSCODE = "!)*^$#|\n" + TIMED_SESSION_USER;
+
+// ログインアクセス時の時限的セッションを生成.
+// この処理はたとえば `/login.lfu.js` のような、ログインの認証アクセスを
+// する場合において、量的アタックを防ぐためのトークンを発行します.
+// request Httpリクエスト情報.
+// expire 時限的トークンの寿命をミリ秒単位で指定します.
+// 戻り値: トークンが返却されるので、この値をHTTPヘッダ等に設定して、
+//         ログイン認証時に読み込んで、アタック回避をします.
+const createTimedSession = function(request, expore) {
+    // ログイントークンキーコードを取得.
+    const tokenKeyCode = getLoginTokenKeyCode(request);
+    // expire時間を取得.
+    const timeout = Date.now() + expore;
+    // トークン発行.
+    return sig.encodeToken(
+        tokenKeyCode + "|\n" + request.header.get("host"),
+        TIMED_SESSION_USER, TIMED_SESSION_PASSCODE,
+        sig.createSessionId(34), timeout);
+}
+
+// ログインアクセス時の時限的セッションを復元.
+// request Httpリクエスト情報.
+// timedSession 対象の時限的トークンを設定します.
+// 戻り値: trueの場合、時限的セッションは正しいです.
+const isTimedSession = function(request, timedSession) {
+    // ログイントークンキーコードを取得.
+    const tokenKeyCode = getLoginTokenKeyCode(request);
+    // 対象のtimedSessionを解析.
+    const sessions = sig.decodeToken(
+        tokenKeyCode + "|\n" + request.header.get("host"),
+        timedSession);
+    // 固定のパスコードとユーザ名の凸合.
+    if(sessions.passCode == TIMED_SESSION_PASSCODE &&
+        sessions.user == TIMED_SESSION_USER && 
+        sessions.expire > Date.now()) {
+        return true;
+    }
+    return false;
+}
+
 ////////////////////////////////////////////////////////////////
 // 外部定義.
 ////////////////////////////////////////////////////////////////
@@ -591,5 +636,7 @@ exports.login = login;
 exports.logout = logout;
 exports.isLogin = isLogin;
 exports.filter = filter;
+exports.createTimedSession = createTimedSession;
+exports.isTimedSession = isTimedSession;
 
 })(global);

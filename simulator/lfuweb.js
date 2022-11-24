@@ -312,11 +312,11 @@ const lufDone = function(exitFlag, res, fail, success) {
 }
 
 // cookie情報を設定.
-const setEventCookie = function(event, cookie) {
-    if(cookie == undefined) {
+const setEventCookie = function(event, cookies) {
+    if(cookies == undefined) {
         return;
     }
-    const list = cookie.split(";");
+    const list = cookies.split(";");
     const len = list.length;
     for(let i = 0; i < len; i ++) {
         event.cookies[i] = list[i].trim();
