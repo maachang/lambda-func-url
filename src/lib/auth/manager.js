@@ -526,8 +526,61 @@ const isLogin = async function(level, resHeader, request) {
     }
 }
 
+// 現在のログイン中ユーザー情報を取得.
+// request 対象のHTTPリクエストを設定します.
+// 戻り値: 現在ログイン中のユーザー情報が返却されます.
+//        ただし、パスワードは除外されます.
+//        {user: string, ....}
+//        user: ログイン中のユーザー名が返却されます.
+//        それ以外は設定されているタグ名(たとえば admin など)が
+//        設定されたりします.
+const getLoginInfo = async function(request) {
+    let user = null;
+    try {
+        // cookieからログイントークンを取得.
+        const token = request.header.getCookie(COOKIE_SESSION_KEY);
+        if(token == undefined) {
+            // ログインされていないので空返却.
+            return {};
+        }
+        // トークンの解析.
+        const keyCode = getLoginTokenKeyCode(request);
+        const dtoken = sig.decodeToken(keyCode, token);
+
+        // expire値を超えている場合.
+        if(Date.now() >= dtoken.expire) {
+            // ログインされていないので空返却.
+            return {};
+        }
+        // ユーザー名を取得.
+        user = dtoken.user;
+    } catch(e) {
+        // 例外なので空返却.
+        return {};
+    }
+    // ユーザ情報を取得.
+    const userInfo = await getUser(user);
+    if(userInfo == null) {
+        // ユーザー情報が存在しない場合エラー返却.
+        throw new Error(
+            "The logged-in user information \"" + user +
+            "\" has already been deleted and does not exist.");
+    }
+    // password以外のUserInfoを返却.
+    const ret = {};
+    for(let k in userInfo) {
+        // パスワードは格納しない.
+        if(k == "password") {
+            continue;
+        }
+        ret[k] = userInfo[k];
+    }
+    ret["user"] = user;
+    return ret;
+}
+
 // ログイン済みか確認をするfilter実行.
-// outBody Array[0]に返却対象の処理結果のレスポンスBodyを設定します.
+// _ Array[0]に返却対象の処理結果のレスポンスBodyを設定します.
 // resState: レスポンスステータス(httpStatus.js).
 // resHeader レスポンスヘッダ(httpHeader.js).
 // request Httpリクエスト情報.
@@ -536,7 +589,7 @@ const isLogin = async function(level, resHeader, request) {
 // 戻り値: true / false(boolean).
 //        trueの場合filter処理で処理終了となります.
 const filter = async function(
-    outBody, resState, resHeader, request, noCheckPaths) {
+    _, resState, resHeader, request, noCheckPaths) {
     // チェック対象外のパス.
     if(noCheckPaths != undefined && noCheckPaths != null &&
         noCheckPaths[request.path]) {
@@ -576,7 +629,7 @@ const TIMED_SESSION_PASSCODE = "!)*^$#|\n" + TIMED_SESSION_USER;
 
 // ログインアクセス時の時限的セッションを生成.
 // この処理はたとえば `/login.lfu.js` のような、ログインの認証アクセスを
-// する場合において、量的アタックを防ぐためのトークンを発行します.
+// する場合において、ユーザー・パスワードの量的アタックを防ぐためのトークンを発行します.
 // request Httpリクエスト情報.
 // expire 時限的トークンの寿命をミリ秒単位で指定します.
 // 戻り値: トークンが返却されるので、この値をHTTPヘッダ等に設定して、
@@ -591,7 +644,7 @@ const createTimedSession = function(request, expore) {
         sig.createSessionId(34), null, expore);
 }
 
-// ログインアクセス時の時限的セッションを復元.
+// ログインアクセス時の時限的セッションを復元して正しく利用できるかチェック.
 // request Httpリクエスト情報.
 // timedSession 対象の時限的トークンを設定します.
 // 戻り値: trueの場合、時限的セッションは正しいです.
@@ -633,6 +686,7 @@ exports.updateSession = updateSession;
 exports.login = login;
 exports.logout = logout;
 exports.isLogin = isLogin;
+exports.getLoginInfo = getLoginInfo;
 exports.filter = filter;
 exports.createTimedSession = createTimedSession;
 exports.isTimedSession = isTimedSession;

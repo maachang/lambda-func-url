@@ -257,7 +257,7 @@ const JHTML_JS_ARGS =
 const JHTML_JS_HEADER =
     "(function() {\n" +
     "'use strict';\n" +
-    "return function(" + JHTML_JS_ARGS + "){\n";
+    "return async function(" + JHTML_JS_ARGS + "){\n";
 
 // jhtml実行js用フッダ.
 const JHTML_JS_FOODER =

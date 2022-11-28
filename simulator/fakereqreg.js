@@ -143,7 +143,7 @@ const httpError = function(status, message) {
 const ORIGIN_REQUIRE_SCRIPT_HEADER =
     "(function() {\n" +
     "'use strict';\n" +
-    "return function(args){\n" +
+    "return async function(args){\n" +
     "const exports = args;\n";
     "const module = {exports: args};\n";
 
