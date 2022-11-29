@@ -19,6 +19,7 @@
         ,"src/lib/storage/jsonb.js"
         ,"src/lib/storage/s3kvs.js"
         ,"src/lib/auth/manager.js"
+        ,"src/lib/auth/mfa.js"
         ,"src/lib/auth/signature.js"
     ]
     ,"//": "(任意)拡張LFUライブラリ群."
