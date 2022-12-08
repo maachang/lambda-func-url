@@ -5,6 +5,14 @@
 (function() {
 'use strict'
 
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("../../freqreg.js");
+    frequire = global.frequire;
+}
+
 // 数字マスク.
 const MASK_NUMBER = 0x10;
 // 文字マスク.

@@ -4,6 +4,14 @@
 (function() {
 'use strict'
 
+// frequireが設定されていない場合.
+let frequire = global.frequire;
+if(frequire == undefined) {
+    // frequire利用可能に設定.
+    require("../../freqreg.js");
+    frequire = global.frequire;
+}
+
 // cookie内容 "key=value" をパース.
 // out {"key": "value"} がセットされます.
 // value "key=value" のような条件を設定します.

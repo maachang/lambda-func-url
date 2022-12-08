@@ -275,6 +275,66 @@ const getS3Params = function(
     return {Bucket: bucketName, Prefix: path, Key: key};
 }
 
+// テーブルアクセスのパラメーターを取得.
+// valueCount 0以上の場合、valuesパラメータ群設定されます.
+// noKey trueの場合 keyは取得しません.
+// args パラメータを設定します.
+//   args = [tableName, key, value, key, value, .... values, values, ....]
+//   条件に従い、テーブルアクセスパラメータを分析して返却します.
+// 戻り値: {tableName: string, path: object, key: object, value: object}
+//   tableName テーブル名が設定されます.
+//   path {key, value ... } が設定されます.
+//   key: {key, value} が設定されます.
+//   value [values, values, ... ]が設定されます.
+const tableAccessParams = function(valueCount, noKey, args) {
+    // value情報.
+    valueCount = valueCount|0;
+    // noKey情報.
+    noKey = noKey == true;
+    let i;
+    let tableName = null;
+    let path = null;
+    let key = null;
+    let value = null;
+    const len = args.length;
+    // テーブル名.
+    tableName = args[0];
+    // valueを取得.
+    if(valueCount > 0) {
+        value = [];
+        for(i = 0; i < valueCount; i ++) {
+            value[value.length] = args[len - valueCount + i];
+        }
+    }
+    // params終端の位置を取得.
+    const paramaEnd = valueCount > 0 ? len - valueCount : len;
+    const pathEnd = noKey ? paramaEnd : paramaEnd - 2;
+    // pathを取得.
+    for(i = 1; i < pathEnd; i += 2) {
+        if(path == null) {
+            path = {};
+        }
+        path[args[i]] = args[i + 1];
+    }
+    // keyを取得.
+    if(!noKey) {
+        i = pathEnd;
+        key = {};
+        key[args[i]] = args[i + 1];
+        if(key == null) {
+            throw new Error("Invalid configuration parameter: " +
+                JSON.stringify(args, null, "  "));
+        }
+    }
+    // 解析結果を返却.
+    return {
+        tableName: tableName,
+        path: path,
+        key: key,
+        value: value
+    }
+}
+
 // オブジェクト生成処理.
 // options {bucket: string, prefix: string, region: string}
 //   - bucket 対象のS3バケット名を設定します.
@@ -379,15 +439,17 @@ const create = function(options) {
 
     // put.
     // tableName 対象のテーブル名を設定します.
-    // path インデックスパス群 [{key: value} ...]を設定します.
-    //      この値はkey名でソートされます.
-    // keys インデックスキー {key: value ... } を設定します.
-    // value 出力する内容(json)を設定します.
+    // path key, value ... を設定します. 
+    // key key, value を設定します. 
+    // value valueを設定します.
     // 戻り値: trueの場合設定に成功しました.
-    const put = async function(tableName, path, key, value) {
+    const put = async function() {
+        // 0value, keyありで取得.
+        let ap = tableAccessParams(1, false, arguments);
         const pm = getS3Params(
-            bucketName, prefixName, tableName, path, key);
-        value = convbEncode(value);
+            bucketName, prefixName, ap.tableName, ap.path, ap.key);
+        ap = null;
+        const value = convbEncode(pm.value[0]);
         const response = {};
         await s3.putObject(
             response, regionName, pm.Bucket, 
@@ -398,14 +460,16 @@ const create = function(options) {
 
     // get.
     // tableName 対象のテーブル名を設定します.
-    // path インデックスパス群 [{key: value} ...]を設定します.
-    //      この値はkey名でソートされます.
-    // keys インデックスキー {key: value ... } を設定します.
+    // path key, value ... を設定します. 
+    // key key, value を設定します. 
     // 戻り値: 検索結果(json)が返却されます.
     //         情報取得に失敗した場合は null が返却されます.
-    const get = async function(tableName, path, key) {
+    const get = async function() {
+        // 0value, keyありで取得.
+        let ap = tableAccessParams(0, false, arguments);
         const pm = getS3Params(
-            bucketName, prefixName, tableName, path, key);
+            bucketName, prefixName, ap.tableName, ap.path, ap.key);
+        ap = null;
         const response = {};
         const bin = await s3.getObject(
             response, regionName, pm.Bucket,
@@ -417,13 +481,15 @@ const create = function(options) {
 
     // remove.
     // tableName 対象のテーブル名を設定します.
-    // path インデックスパス群 [{key: value} ...]を設定します.
-    //      この値はkey名でソートされます.
-    // keys インデックスキー {key: value ... } を設定します.
+    // path key, value ... を設定します. 
+    // key key, value を設定します. 
     // 戻り値: trueの場合削除に成功しました.
-    const remove = async function(tableName, path, key) {
+    const remove = async function() {
+        // 0value, keyありで取得.
+        let ap = tableAccessParams(0, false, arguments);
         const pm = getS3Params(
-            bucketName, prefixName, tableName, path, key);
+            bucketName, prefixName, ap.tableName, ap.path, ap.key);
+        ap = null;
         const response = {};
         await s3.deleteObject(
             response, regionName, pm.Bucket,
@@ -434,8 +500,7 @@ const create = function(options) {
 
     // 指定位置のリスト一覧を取得.
     // tableName 対象のテーブル名を設定します.
-    // path インデックスパス群 [{key: value} ...]を設定します.
-    //      この値はkey名でソートされます.
+    // path key, value ... を設定します. 
     // max １ページの最大表示数を設定.
     //     100件を超える設定はできません.
     // page ページ数を設定します.
@@ -443,9 +508,14 @@ const create = function(options) {
     //      繋がるので注意が必要です.
     // 戻り値: [{key: value} ... ]
     //        指定したpath位置以下のobject名のkeyValue群が返却されます.
-    const list = async function(tableName, path, max, page) {
-        max = max|0;
-        page = page|0;
+    const list = async function() {
+        // 2value, noKey 条件.
+        let ap = tableAccessParams(2, true, arguments);
+        const max = ap.value[0]|0;
+        const page = ap.value[1]|0;
+        const pm = getS3Params(
+            bucketName, prefixName, ap.tableName, ap.path, null);
+        ap = null;
         // １度に取得できる最大リスト件数の範囲外の場合.
         if(max <= 0 || max > MAX_LIST) {
             if(max <= 0) {
@@ -459,9 +529,6 @@ const create = function(options) {
             throw new Error(
                 "The number of pages is set to zero.");
         }
-        // 実行パラメータを生成.
-        const pm = getS3Params(
-            bucketName, prefixName, tableName, path);
         // 利用条件をセット.
         const bucket = pm.Bucket;
         const prefix = pm.Prefix;
