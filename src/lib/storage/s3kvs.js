@@ -335,6 +335,23 @@ const tableAccessParams = function(valueCount, noKey, args) {
     }
 }
 
+// 2つの指定パラメータを１つのパラメータにマージする.
+// topParams TOPで指定するパラメータをArrayで設定します.
+// params 連結するパラメータをArrayで設定します.
+// 戻り値: ２つが連結したArrayが返却されます.
+const appendParams = function(topParams, params) {
+    const topLen = topParams.length;
+    const paramsLen = params.length;
+    const ret = [];
+    for(let i = 0; i < topLen; i ++) {
+        ret[ret.length] = topParams[i];
+    }
+    for(let i = 0; i < paramsLen; i ++) {
+        ret[ret.length] = params[i];
+    }
+    return ret;
+}
+
 // オブジェクト生成処理.
 // options {bucket: string, prefix: string, region: string}
 //   - bucket 対象のS3バケット名を設定します.
@@ -574,43 +591,52 @@ const create = function(options) {
     // 戻り値: それぞれの処理が返却されます.
     ret.currentTable = function(tableName) {
         return {
-            put: function(path, key, value) {
-                return put(tableName, path, key, value);
+
+            // put.
+            // path key, value ... を設定します. 
+            // key key, value を設定します. 
+            // value valueを設定します.
+            // 戻り値: trueの場合設定に成功しました.            
+            put: function() {
+                return put.apply(null,
+                    appendParams([tableName], arguments));
             }
-            ,get: function(path, key) {
-                return get(tableName, path, key);
+
+            // get.
+            // path key, value ... を設定します. 
+            // key key, value を設定します. 
+            // 戻り値: 検索結果(json)が返却されます.
+            //         情報取得に失敗した場合は null が返却されます.
+            ,get: function() {
+                return get.apply(null,
+                    appendParams([tableName], arguments));
             }
-            ,remove: function(path, key) {
-                return remove(tableName, path, key);
+
+            // remove.
+            // path key, value ... を設定します. 
+            // key key, value を設定します. 
+            // 戻り値: trueの場合削除に成功しました.
+            ,remove: function() {
+                return remove.apply(null,
+                    appendParams([tableName], arguments));
             }
-            ,list: function(path, max, page) {
-                return list(tableName, path, max, page);
+
+            // 指定位置のリスト一覧を取得.
+            // path key, value ... を設定します. 
+            // max １ページの最大表示数を設定.
+            //     100件を超える設定はできません.
+            // page ページ数を設定します.
+            //      先頭から取得するので、ページ数が多いと「速度低下」に
+            //      繋がるので注意が必要です.
+            // 戻り値: [{key: value} ... ]
+            //        指定したpath位置以下のobject名のkeyValue群が返却されます.
+            ,list: function() {
+                return list.apply(null,
+                    appendParams([tableName], arguments));
             }
         };
     }
-
-    // カレントテーブル ＋ パス条件を設定.
-    // tableName 対象のテーブル名を設定します.
-    // path インデックスパス群 [{key: value} ...]を設定します.
-    //      この値はkey名でソートされます.
-    // 戻り値: それぞれの処理が返却されます.
-    ret.currentTablePath = function(tableName, path) {
-        return {
-            put: function(key, value) {
-                return put(tableName, path, key, value);
-            }
-            ,get: function(key) {
-                return get(tableName, path, key);
-            }
-            ,remove: function(key) {
-                return remove(tableName, path, key);
-            }
-            ,list: function(max, page) {
-                return list(tableName, path, max, page);
-            }
-        };
-    }
-
+    
     // 固有設定.
     ret.put = put;
     ret.get = get;
