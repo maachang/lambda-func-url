@@ -294,6 +294,11 @@ const tableAccessParams = function(valueCount, noKey, args) {
     let value = null;
     end = args.length;
 
+    // 引数が存在しない場合.
+    if(end == 0) {
+        throw new Error("argument does not exist")
+    }
+
     // value情報.
     valueCount = valueCount|0;
     // noKey情報.
@@ -362,12 +367,10 @@ const tableListAccessParams = function(args) {
     let value = null;
     end = args.length;
 
-    // value情報.
-    valueCount = valueCount|0;
-    // noKey情報.
-    noKey = noKey == true;
-
-    // テーブル名.
+    // 引数が存在しない場合.
+    if(end == 0) {
+        throw new Error("argument does not exist")
+    }
     tableName = args[0];
     off = 1;
 
