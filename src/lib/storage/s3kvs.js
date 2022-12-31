@@ -498,8 +498,6 @@ const create = function(options) {
         let ap = tableAccessParams(0, false, arguments);
         const pm = getS3Params(
             bucketName, prefixName, ap.tableName, ap.path, ap.key);
-        console.log(JSON.stringify(ap, null, "  "));
-        console.log(JSON.stringify(pm, null, "  "));
         ap = null;
         const response = {};
         const bin = await s3.getObject(
