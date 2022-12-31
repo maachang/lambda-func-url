@@ -287,45 +287,57 @@ const getS3Params = function(
 //   key: {key, value} が設定されます.
 //   value [values, values, ... ]が設定されます.
 const tableAccessParams = function(valueCount, noKey, args) {
-    // value情報.
-    valueCount = valueCount|0;
-    // noKey情報.
-    noKey = noKey == true;
-    let i;
+    let i, off, end;
     let tableName = null;
     let path = null;
     let key = null;
     let value = null;
-    const len = args.length;
+    end = args.length;
+
+    // value情報.
+    valueCount = valueCount|0;
+    // noKey情報.
+    noKey = noKey == true;
+
     // テーブル名.
     tableName = args[0];
-    // valueを取得.
+    off = 1;
+
+    // valueCountが存在する場合.
     if(valueCount > 0) {
+        end -= valueCount;
         value = [];
         for(i = 0; i < valueCount; i ++) {
-            value[value.length] = args[len - valueCount + i];
+            value[i] = args[end + i];
         }
     }
-    // params終端の位置を取得.
-    const paramaEnd = valueCount > 0 ? len - valueCount : len;
-    const pathEnd = noKey ? paramaEnd : paramaEnd - 2;
-    // pathを取得.
-    for(i = 1; i < pathEnd; i += 2) {
-        if(path == null) {
-            path = {};
-        }
-        path[args[i]] = args[i + 1];
-    }
-    // keyを取得.
+
+    // keyを取得する場合.
     if(!noKey) {
-        i = pathEnd;
+        end -= 2;
+        // key = key, value が担保出来てない場合.
+        if(off > end) {
+            throw new Error("Unable to define {key: value} for key");
+        }
         key = {};
-        key[args[i]] = args[i + 1];
-        if(key == null) {
-            throw new Error("Invalid configuration parameter: " +
-                JSON.stringify(args, null, "  "));
+        key[args[end]] = args[end + 1];
+    }
+
+    // pathを設定.
+    if(end - off > 0) {
+        const len = end - off;
+        // 2の倍数でない場合.
+        if((len & 0x01) != 0) {
+            throw new Error(
+                "{key: value} definition of path is not even set: " + 
+                len);
+        }
+        path = {};
+        for(i = 0; i < len; i += 2) {
+            path[args[off + i]] = args[off + i + 1];
         }
     }
+
     // 解析結果を返却.
     return {
         tableName: tableName,
@@ -465,8 +477,8 @@ const create = function(options) {
         let ap = tableAccessParams(1, false, arguments);
         const pm = getS3Params(
             bucketName, prefixName, ap.tableName, ap.path, ap.key);
+        const value = convbEncode(ap.value[0]);
         ap = null;
-        const value = convbEncode(pm.value[0]);
         const response = {};
         await s3.putObject(
             response, regionName, pm.Bucket, 
@@ -486,6 +498,8 @@ const create = function(options) {
         let ap = tableAccessParams(0, false, arguments);
         const pm = getS3Params(
             bucketName, prefixName, ap.tableName, ap.path, ap.key);
+        console.log(JSON.stringify(ap, null, "  "));
+        console.log(JSON.stringify(pm, null, "  "));
         ap = null;
         const response = {};
         const bin = await s3.getObject(

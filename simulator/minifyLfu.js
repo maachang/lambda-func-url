@@ -38,7 +38,7 @@ const getPath = function() {
     }
 
     // 0x0d, 0x0d が終端に設定されている場合.
-    // ※どうやらLinux上でcrlf改行のbashファイルから呼び出した場合
+    // ※どうやらLinux上でcrlf改行(￥r￥n)のbashファイルから呼び出した場合
     //   プロセスパラメータ(process.argv)の最後0x0d, 0x0dが入る
     //   みたい.
     let bpath = Buffer.from(path);
