@@ -67,9 +67,10 @@ const getPath = function() {
 }
 
 // ディレクトリ作成.
+// srcの最下層を除いた形でディレクトリを作成します.
 // path 対象の基本パスを設定します.
 // src 対象のディレクトリやファイルを設定します.
-const mkdir = function(path, src) {
+const mkdirToCutFileName = function(path, src) {
     const p = src.lastIndexOf("/");
     if(p == -1) {
         return false;
@@ -77,10 +78,9 @@ const mkdir = function(path, src) {
     const dir = src.substring(0, p);
     try {
         fs.mkdirSync(path + "/" + dir);
-        return true;
     } catch(e) {
         return false;
-    };    
+    }
 }
 
 // .lfuSrcList.JSONファイルを取得.
@@ -108,7 +108,7 @@ const cmdMimify = function(path, jsName, moveDir) {
     // minifyする.
     // > uglifyjs <input js file> --compress drop_console=true
     //   --mangle -o <js.min file>
-    mkdir(path, moveDir + "/" + jsName);
+    mkdirToCutFileName(path, moveDir + "/" + jsName);
     execSync("uglifyjs " + path + "/" + jsName +
         " --compress drop_console=true --mangle -o " +
         path + "/" + moveDir + "/" + jsName);
@@ -119,8 +119,10 @@ const cmdMimify = function(path, jsName, moveDir) {
 // path 対象の基本パスを設定します.
 // srcList loadLfuSrcListJsonFile で取得した内容を設定します.
 const executeMinify = function(path, srcList) {
-    // 初期ディレクトリを作成.
-    mkdir(path, MINIFY_DIR);
+    // minify出力先のディレクトリを作成.
+    try {
+        fs.mkdirSync(path + "/" + MINIFY_DIR);
+    } catch(e) {}
 
     // [base]minify.
     const baseList = srcList.base;
