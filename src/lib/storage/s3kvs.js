@@ -222,12 +222,12 @@ const getS3Params = function(
     bucketName, prefixName, tableName, index) {
     // パスを取得.
     // 基本prefixが存在しない.
-    let path = null;
+    let keyIndex = null;
     if(prefixName == undefined || prefixName == null) {
-        path = tableName;
+        keyIndex = tableName;
     // 基本prefixが存在する.
     } else {
-        path = prefixName + "/" + tableName;
+        keyIndex = prefixName + "/" + tableName;
     }
     // index条件を文字列化.
     if(index != undefined && index != null) {
@@ -245,12 +245,12 @@ const getS3Params = function(
         list.sort();
         let len = list.length;
         for(let i = 0; i < len; i ++) {
-            path += "/" + list[i];
+            keyIndex += "/" + list[i];
         }
         list = null;
     }
-    // BucketとprefixとKeyを登録.
-    return {Bucket: bucketName, Prefix: path};
+    // BucketとKeyを登録.
+    return {Bucket: bucketName, Key: keyIndex};
 }
 
 // テーブルアクセスのパラメーターを取得.
@@ -276,8 +276,6 @@ const tableAccessParams = function(valueCount, args) {
 
     // value情報.
     valueCount = valueCount|0;
-    // noKey情報.
-    noKey = noKey == true;
 
     // テーブル名.
     tableName = args[0];
@@ -314,57 +312,6 @@ const tableAccessParams = function(valueCount, args) {
         value: value
     }
 }
-
-// テーブルリストアクセスのパラメーターを取得.
-// args パラメータを設定します.
-//   args = [tableName, pageNo, max, key, value, key, value ....]
-//   条件に従い、テーブルアクセスパラメータを分析して返却します.
-// 戻り値: {tableName: string, index: object, value: object}
-//   tableName テーブル名が設定されます.
-//   index {key, value ... } が設定されます.
-//   value [pageNo, max]が設定されます.
-const tableListAccessParams = function(args) {
-    let i, off, end;
-    let tableName = null;
-    let index = null;
-    let value = null;
-    end = args.length;
-
-    // 引数が存在しない場合.
-    if(end == 0) {
-        throw new Error("argument does not exist")
-    }
-    tableName = args[0];
-    off = 1;
-
-    //  value [pageNo, max]を取得.
-    value = [];
-    for(i = 0; i < 2; i ++) {
-        value[i] = args[off + i];
-    }
-    off += 2;
-
-    // pathを設定.
-    const len = end - off;
-    // 2の倍数でない場合.
-    if(len <= 0 || (len & 0x01) != 0) {
-        throw new Error(
-            "{key: value} definition of path is not even set: " + 
-            len);
-    }
-    index = {};
-    for(i = 0; i < len; i += 2) {
-        index[args[off + i]] = args[off + i + 1];
-    }
-
-    // 解析結果を返却.
-    return {
-        tableName: tableName,
-        index: index,
-        value: value
-    }
-}
-
 
 // 2つの指定パラメータを１つのパラメータにマージする.
 // topParams TOPで指定するパラメータをArrayで設定します.
@@ -500,7 +447,7 @@ const create = function(options) {
         const response = {};
         await s3.putObject(
             response, regionName, pm.Bucket, 
-            pm.Prefix, value,
+            pm.Key + S3KVS_EXTENSION, value,
             credential);
         return response.status <= 299;
     }
@@ -519,7 +466,7 @@ const create = function(options) {
         const response = {};
         const bin = await s3.getObject(
             response, regionName, pm.Bucket,
-            pm.Prefix,
+            pm.Key + S3KVS_EXTENSION,
             credential);
         return response.status >= 400 ?
             null: convbDecode(bin);
@@ -538,29 +485,23 @@ const create = function(options) {
         const response = {};
         await s3.deleteObject(
             response, regionName, pm.Bucket,
-            pm.Prefix,
+            pm.Key + S3KVS_EXTENSION,
             credential);
         return response.status <= 299;
     }
 
-    // 指定位置のリスト一覧を取得.
+    // 指定テーブルのリスト一覧を取得.
     // tableName 対象のテーブル名を設定します.
     // page ページ数を設定します.
     //      呼び出しに毎回先頭から取得するので、ページ数が多いと「速度低下」に
     //      繋がるので注意が必要です.
     // max １ページの最大表示数を設定.
     //     100件を超える設定はできません.
-    // path key, value ... を設定します. 
     // 戻り値: [{key: value} ... ]
     //        指定したpath位置以下のobject名のkeyValue群が返却されます.
-    const list = async function() {
-        // 2value, noKey 条件.
-        let ap = tableListAccessParams(arguments);
-        const page = ap.value[0]|0;
-        const max = ap.value[1]|0;
-        const pm = getS3Params(
-            bucketName, prefixName, ap.tableName, ap.index);
-        ap = null;
+    const list = async function(tableName, page, max) {
+        page = page|0;
+        max = max|0;
         // １度に取得できる最大リスト件数の範囲外の場合.
         if(max <= 0 || max > MAX_LIST) {
             if(max <= 0) {
@@ -574,9 +515,11 @@ const create = function(options) {
             throw new Error(
                 "The number of pages is set to zero.");
         }
+        const pm = getS3Params(
+            bucketName, prefixName, tableName, undefined);
         // 利用条件をセット.
         const bucket = pm.Bucket;
-        const prefix = pm.Prefix;
+        const prefix = pm.Key;
         let cnt = 1;
         let res = null;
         let ret = null;
@@ -620,8 +563,7 @@ const create = function(options) {
         return {
 
             // put.
-            // path key, value ... を設定します. 
-            // key key, value を設定します. 
+            // index key, value ... を設定します. 
             // value valueを設定します.
             // 戻り値: trueの場合設定に成功しました.            
             put: function() {
@@ -630,8 +572,7 @@ const create = function(options) {
             }
 
             // get.
-            // path key, value ... を設定します. 
-            // key key, value を設定します. 
+            // index key, value ... を設定します. 
             // 戻り値: 検索結果(json)が返却されます.
             //         情報取得に失敗した場合は null が返却されます.
             ,get: function() {
@@ -640,8 +581,7 @@ const create = function(options) {
             }
 
             // remove.
-            // path key, value ... を設定します. 
-            // key key, value を設定します. 
+            // index key, value ... を設定します. 
             // 戻り値: trueの場合削除に成功しました.
             ,remove: function() {
                 return remove.apply(null,
@@ -649,17 +589,15 @@ const create = function(options) {
             }
 
             // 指定位置のリスト一覧を取得.
-            // path key, value ... を設定します. 
+            // page ページ数を設定します.
+            //      呼び出しに毎回先頭から取得するので、ページ数が多いと「速度低下」に
+            //      繋がるので注意が必要です.
             // max １ページの最大表示数を設定.
             //     100件を超える設定はできません.
-            // page ページ数を設定します.
-            //      先頭から取得するので、ページ数が多いと「速度低下」に
-            //      繋がるので注意が必要です.
             // 戻り値: [{key: value} ... ]
             //        指定したpath位置以下のobject名のkeyValue群が返却されます.
-            ,list: function() {
-                return list.apply(null,
-                    appendParams([tableName], arguments));
+            ,list: function(page, max) {
+                return list(tableName, page, max);
             }
             // 現在のカレントテーブル名を取得.
             // 戻り値: 現在設定されているカレントテーブル名が返却されます.

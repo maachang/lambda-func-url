@@ -79,32 +79,51 @@ const cons = require("./constants.js");
 // lfuPath.
 let lfuPath = null;
 
-// confEnvをロード.
-const loadConfEnv = function() {
-    // confEnv条件を取得.
+// confEnv条件を取得.
+const requireConfEnv = function() {
     const confEnv = require("./confenv.js");
     confEnv.loadConfEnv();
+}
 
+// [環境変数]LFU_PATHを取得.
+const getLfuPath = function() {
     // lfuパスを取得.
     lfuPath = util.getEnv(cons.ENV_LFU_PATH);
     if(typeof(lfuPath) != "string") {
         // lfuパスが設定されていない場合エラー.
-        throw new Error("lfu path is not set.");
+        throw new Error("lfu path(ENV: " +
+            cons.ENV_LFU_PATH + ") is not set.");
     }
     // LFUPathの環境変数対応.
     if(lfuPath.endsWith("/")) {
         lfuPath = lfuPath.substring(0, lfuPath.length - 1);
     }
-
+    return lfuPath;
+}
+ 
+// [環境変数]MAIN_EXTERNALを取得.
+const getMainExternal = function() {
     // mainExternalを取得.
-    let mainExternal = util.getEnv("MAIN_EXTERNAL");
+    const mainExternal = util.getEnv("MAIN_EXTERNAL");
     if(mainExternal == undefined || mainExternal == null) {
+        // MAIN_EXTERNAL が設定されていない場合エラー.
         throw new Error(
             "\"MAIN_EXTERNAL\" environment variable is not set.")
     }
+    return mainExternal.trim().toLowerCase();;
+}
 
-    // simurator用にmainExternalの条件をダミーセット.
-    mainExternal = mainExternal.trim().toLowerCase();
+// confEnvをロード.
+const loadConfEnv = function() {
+    // confEnv条件を取得.
+    requireConfEnv();
+
+    // mainExternalを取得.
+    const mainExternal = getMainExternal();
+
+    // lfuパスを取得.
+    lfuPath = getLfuPath();
+
     // s3の場合.
     if(mainExternal == "s3") {
         if(process.env["S3_CONNECT"] == undefined ||
@@ -145,6 +164,17 @@ const loadInit = function() {
 
 // クラスター起動.
 const startupCluster = function() {
+
+    /////////////////////////////////
+    // 未設定条件が存在するかチェック.
+    /////////////////////////////////
+
+    // confEnv条件を取得.
+    requireConfEnv();
+    // mainExternalを取得.
+    getMainExternal();
+    // lfuパスを取得.
+    getLfuPath();
 
     // ワーカー数を取得.
     let workerLen = args.get("-w", "--worker")|0;

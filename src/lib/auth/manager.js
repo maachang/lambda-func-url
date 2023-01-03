@@ -98,7 +98,7 @@ const getUser = async function(user) {
     if(!useString(user)) {
         throw new Error("User has not been set.");
     }
-    return await userTable.get(undefined, {user: user});
+    return await userTable.get("user", user);
 }
 
 // ユーザー情報が存在するかチェック.
@@ -137,8 +137,7 @@ const createUser = async function(user, password, options) {
     }
     // パスワードをセット.
     userInfo["password"] = password;
-    return await userTable.put(undefined,
-        {user: user}, userInfo);
+    return await userTable.put("user", user, userInfo);
 }
 
 // ユーザ削除.
@@ -150,8 +149,7 @@ const removeUser = async function(user) {
     if(userInfo == null) {
         return false;
     }
-    return await userTable.remove(
-        undefined, {user: user});
+    return await userTable.remove("user", user);
 }
 
 // パスワード変更.
@@ -181,8 +179,7 @@ const changePassword = async function(
     // 新しいパスワードをsha256変換.
     newPassword = sha256(newPassword);
     userInfo["password"] = newPassword;
-    return await userTable.put(undefined,
-        {user: user}, userInfo)
+    return await userTable.put("user", user, userInfo)
 }
 
 // オプションを設定/削除.
@@ -214,8 +211,7 @@ const settingOption = async function(putFlag, user, options) {
             }
         }
     }
-    return await userTable.put(undefined,
-        {user: user}, userInfo);
+    return await userTable.put("user", user, userInfo);
 }
 
 // ユーザ名一覧を取得.
@@ -229,7 +225,7 @@ const userList = async function(page, max) {
         max = LOGIN_USER_LIST_LIMIT;
     }
     // １ページの情報を取得.
-    const list = await userTable.list(undefined, max, page);
+    const list = await userTable.list(max, page);
     // 情報が存在しない場合.
     if(list == null) {
         return [];
@@ -268,8 +264,7 @@ const createSession = async function(user) {
     // パスワードを削除.
     delete userInfo["password"];
     // セッション登録.
-    if(await sessionTable.put(
-        undefined, {user: user}, userInfo) == true) {
+    if(await sessionTable.put("user", user, userInfo) == true) {
         return userInfo;
     }
     return null;
@@ -283,7 +278,7 @@ const createSession = async function(user) {
 //        sessionId セッションIDが返却されます.
 //        lastModified セッション生成時間(ミリ秒)が設定されます.
 const getSession = async function(user) {
-    return await sessionTable.get(undefined, {user: user});
+    return await sessionTable.get("user", user);
 }
 
 // ユーザーセッションを削除.
@@ -293,8 +288,7 @@ const getSession = async function(user) {
 // 戻り値: trueの場合ユーザーセッションは削除できました.
 const removeSession = async function(
     user, passCode, sessionId) {
-    const sessionInfo = await sessionTable.get(
-        undefined, {user: user});
+    const sessionInfo = await sessionTable.get("user", user);
     if(sessionInfo == null) {
         // 取得出来ない場合は削除失敗.
         return false;
@@ -306,8 +300,7 @@ const removeSession = async function(
         return false;
     }
     // セッション更新
-    return await sessionTable.remove(
-        undefined, {user: user});
+    return await sessionTable.remove("user", user);
 }
 
 // ユーザーセッションが保持する最終更新時間がexpire時間を
@@ -329,8 +322,7 @@ const isUserSessionToExpire = function(lastModified) {
 // 戻り値: trueの場合、ユーザーセッションの更新成功です.
 const updateSession = async function(
     user, passCode, sessionId) {
-    const sessionInfo = await sessionTable.get(
-        undefined, {user: user});
+    const sessionInfo = await sessionTable.get("user", user);
     if(sessionInfo == null) {
         // 取得出来ない場合は更新失敗.
         return false;
@@ -346,8 +338,7 @@ const updateSession = async function(
     // 更新時間を更新する.
     sessionInfo.lastModified = Date.now();
     // セッション更新
-    return await sessionTable.put(
-        undefined, {user: user}, sessionInfo);
+    return await sessionTable.put("user", user, sessionInfo);
 }
 
 // ユーザーログイン確認.
